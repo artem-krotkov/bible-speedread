@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Библия">
+<title>Библия: скорочтение</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="reader">
+  <header id="top">
+    <button id="ref" class="ui" type="button"></button>
+    <div id="progress"><div id="bar"></div></div>
+  </header>
+
+  <section id="stage">
+    <div class="guide"></div>
+    <div id="word"><span id="wl"></span><span id="wp"></span><span id="wr"></span></div>
+    <div class="guide"></div>
+  </section>
+
+  <p id="context"></p>
+  <p id="hint">Держите палец на экране - слова побегут.<br>Отпустите - пауза.<br>Касание у левого или правого края - стих назад или вперёд.</p>
+  <div id="flash"></div>
+  <p id="install" hidden>Чтобы установить: «Поделиться» → «На экран Домой». Так приложение работает без интернета и не теряет прогресс.</p>
+
+  <footer id="controls" class="ui">
+    <button id="prev" type="button" aria-label="Предыдущий стих">‹ стих</button>
+    <div id="speed">
+      <button id="slower" type="button" aria-label="Медленнее">−</button>
+      <span><b id="wpm"></b> сл/мин</span>
+      <button id="faster" type="button" aria-label="Быстрее">+</button>
+    </div>
+    <button id="next" type="button" aria-label="Следующий стих">стих ›</button>
+  </footer>
+</main>
+
+<div id="menu" class="ui" hidden>
+  <div id="menu-head">
+    <div id="menu-left">
+      <button id="menu-back" type="button" hidden>‹ Книги</button>
+      <button id="menu-help" type="button" aria-label="Справка">?</button>
+    </div>
+    <h2 id="menu-title"></h2>
+    <button id="menu-close" type="button" aria-label="Закрыть">✕</button>
+  </div>
+  <div id="tabs">
+    <button type="button" data-tab="nt">Новый Завет</button>
+    <button type="button" data-tab="ot">Ветхий Завет</button>
+    <button type="button" data-tab="hist">История</button>
+  </div>
+  <div id="menu-list"></div>
+  <input id="import-file" type="file" hidden>
+</div>
+
+<script src="bible.js"></script>
+<script src="version.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
