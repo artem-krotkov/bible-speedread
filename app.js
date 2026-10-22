@@ -375,6 +375,7 @@ function endSession() {
   if (!s || !s.words) return;
   const now = Date.now();
   const end = freeze(pos);
+  track('read', { words: s.words, seconds: Math.round((now - s.t) / 1000), book: BOOKS[pos.b].n, wpm });
   const day = days[dateKey(now)] || { ms: 0, words: 0 };
   day.ms += now - s.t;
   day.words += s.words;
@@ -430,6 +431,7 @@ function pause() {
   endSession();
   allowSleepLater();
   showPaused();
+  reloadIfIdle();
 }
 
 const pointers = new Set();
@@ -549,6 +551,7 @@ function openMenu() {
 
 function closeMenu() {
   el.menu.hidden = true;
+  reloadIfIdle();
 }
 
 function percent(x) {
@@ -894,9 +897,27 @@ measure();
 el.wpm.textContent = wpm;
 showPaused();
 
-// веб-версия: работа без интернета (в сборке Android не нужна)
+// веб-версия: работа без интернета и автообновление (в сборке Android не нужна).
+// Новая версия ставится в фоне; страницу перезагружаем, когда не читают и меню закрыто - место сохранено
+let reloadWhenIdle = false;
+
+function reloadIfIdle() {
+  if (reloadWhenIdle && !playing && el.menu.hidden) location.reload();
+}
+
 if ('serviceWorker' in navigator && !window.Capacitor && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  navigator.serviceWorker.register('sw.js').catch(() => { /* без офлайна */ });
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return; // первая установка - страница и так свежая
+    reloadWhenIdle = true;
+    reloadIfIdle();
+  });
+  navigator.serviceWorker.register('sw.js').then((reg) => {
+    // с экрана Домой приложение часто не запускается заново, а возвращается из фона - проверяем и тогда
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) reg.update().catch(() => { /* нет сети */ });
+    });
+  }).catch(() => { /* без офлайна */ });
 }
 
 // iPhone в Safari (не с экрана Домой): подсказать установку
@@ -904,6 +925,90 @@ const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const standalone = navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 if (isIos && !standalone && !window.Capacitor) $('install').hidden = false;
+
+// ---------- статистика (Google Analytics 4) ----------
+// Анонимный номер устройства храним сами (rsvp.device) и передаём как client_id - так он не зависит от cookies GA.
+// Пустой GA_ID - статистика выключена.
+
+const GA_ID = 'G-YM6LX4Q5TX';
+const PLATFORM = window.Capacitor ? 'android_apk'
+  : isIos ? (standalone ? 'iphone_app' : 'iphone_safari')
+  : standalone ? 'web_app' : 'browser';
+// «0.1.8 22.10.2026» или «веб 22.10.2026»
+const VERSION = (window.APP_VERSION || '').replace(' от ', ' ').replace(/ \d\d:\d\d$/, '');
+
+function deviceId() {
+  let id = load('device', null);
+  if (!id) {
+    id = Math.floor(Math.random() * 2e9) + '.' + Math.floor(Date.now() / 1000);
+    store('device', id);
+  }
+  return id;
+}
+
+function track(name, params) {
+  if (window.gtag) window.gtag('event', name, params);
+}
+
+if (GA_ID) {
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function () { window.dataLayer.push(arguments); };
+  window.gtag('js', new Date());
+  window.gtag('set', 'user_properties', { platform: PLATFORM, app_version: VERSION });
+  window.gtag('config', GA_ID, {
+    client_id: deviceId(),
+    allow_google_signals: false,
+    allow_ad_personalization_signals: false,
+  });
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_ID;
+  document.head.append(s);
+}
+
+// ---------- обновление Android-приложения (APK не из магазина) ----------
+// При запуске и возврате из фона читаем android.json с сайта (его пишет publish_apk.sh);
+// если там номер больше своего - предлагаем скачать новый APK (откроется браузер, затем установщик Android)
+
+const UPDATE_URL = 'https://artem-krotkov.github.io/bible-speedread/android.json';
+// тексты на согласовании
+const UPDATE_TEXT = { title: '…', go: '…', later: '…', after: '…' };
+let updateLater = false;
+
+async function checkUpdate() {
+  if (!window.Capacitor || !window.APP_CODE || updateLater || !$('update').hidden) return;
+  try {
+    const r = await fetch(UPDATE_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    const u = await r.json();
+    if (u.code > window.APP_CODE && u.url) showUpdate(u);
+  } catch (e) { /* нет сети - в другой раз */ }
+}
+
+function showUpdate(u) {
+  const text = $('update-text');
+  text.replaceChildren(node('b', '', UPDATE_TEXT.title.replace('{N}', u.name)));
+  if (u.notes) text.append(document.createElement('br'), u.notes);
+  $('update-go').textContent = UPDATE_TEXT.go;
+  $('update-later').textContent = UPDATE_TEXT.later;
+  $('update-buttons').hidden = false;
+  $('update').hidden = false;
+  body.classList.add('has-update');
+  $('update-go').onclick = () => {
+    track('update_click', { to: u.name });
+    $('update-buttons').hidden = true;
+    text.textContent = UPDATE_TEXT.after;
+    location.href = u.url; // внешний адрес Capacitor открывает в браузере
+  };
+  $('update-later').onclick = () => {
+    updateLater = true;
+    $('update').hidden = true;
+    body.classList.remove('has-update');
+  };
+  track('update_offer', { to: u.name });
+}
+
+checkUpdate();
+if (plugins.App) plugins.App.addListener('resume', checkUpdate);
 
 // при первом запуске справка открывается сама
 if (!load('helpSeen', false)) {

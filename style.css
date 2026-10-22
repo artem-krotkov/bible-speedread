@@ -167,6 +167,38 @@ button {
 #install[hidden] { display: none; }
 body.playing #install { opacity: 0; }
 
+/* предложение обновить Android-приложение (APK не из магазина) */
+#update {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--faint);
+  border-radius: 10px;
+  color: var(--dim);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+#update[hidden],
+body.playing #update { display: none; }
+#update-text b { color: var(--fg); font-weight: 400; }
+
+#update-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+#update-buttons button {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--faint);
+}
+
+#update-go { color: var(--fg); }
+#update-buttons[hidden] { display: none; }
+
 /* подсветка края при переходе по стиху */
 #flash {
   position: absolute;
@@ -231,7 +263,8 @@ body.playing #controls { opacity: 0; }
 
 body.playing #hint,
 body.started #hint,
-body.has-context #hint { display: none; }
+body.has-context #hint,
+body.has-update #hint { display: none; }
 
 /* --- меню книг и глав --- */
 
