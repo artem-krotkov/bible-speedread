@@ -1,6 +1,65 @@
 {
- "code": 9,
- "name": "0.1.9",
- "url": "https://github.com/artem-krotkov/bible-speedread/releases/download/v0.1.9/bible-speedread-0.1.9.apk",
- "notes": "Иконка: буква крупнее"
+ "code": 10,
+ "name": "0.1.10",
+ "url": "https://github.com/artem-krotkov/bible-speedread/releases/download/v0.1.10/bible-speedread-0.1.10.apk",
+ "notes": "Дальше обновления будут приходить сами, без скачивания файла",
+ "native_hash": "8a0cf34b3ec2c4f5f53be063af3188c604f6c47ec0f83d16dbade7b9ac99a3d5",
+ "web": {
+  "code": 10,
+  "name": "0.1.10",
+  "min_native": 10,
+  "notes": "Дальше обновления будут приходить сами, без скачивания файла",
+  "manifest": [
+   {
+    "file_name": "app.js",
+    "file_hash": "a1e7a8b105d2062b2bff26a022dc1c7cb28cc85b884dab5c7fe59a9dcc281863",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/app.js?h=a1e7a8b105d2"
+   },
+   {
+    "file_name": "bible.js",
+    "file_hash": "b58fc01acb7aa58d6364f21ec301cb381ce45c3ad9a0bc432ad7a2f39d2036a1",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/bible.js?h=b58fc01acb7a"
+   },
+   {
+    "file_name": "icons/icon-180.png",
+    "file_hash": "c5cbd87c5e2aaef98f93abcb93b30e5a78e9d519bf87dd684da75c8b1e940493",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/icons/icon-180.png?h=c5cbd87c5e2a"
+   },
+   {
+    "file_name": "icons/icon-192.png",
+    "file_hash": "097fc4ca1207929ce858ad26edd57d020657d3da83647d3148a1e31b2fbd2585",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/icons/icon-192.png?h=097fc4ca1207"
+   },
+   {
+    "file_name": "icons/icon-512.png",
+    "file_hash": "a94f641647c8618054f2b7262a96f9e0faf1b2846fcee59c74f1c5a13f775716",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/icons/icon-512.png?h=a94f641647c8"
+   },
+   {
+    "file_name": "index.html",
+    "file_hash": "26f0b811f971e84cab3456ae1b434d6f50f21135ad2f19321edc5140cba655ed",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/index.html?h=26f0b811f971"
+   },
+   {
+    "file_name": "manifest.webmanifest",
+    "file_hash": "831dd37eea4fcc75b05e456209e533f333a781d77d664f7709892b10172b0627",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/manifest.webmanifest?h=831dd37eea4f"
+   },
+   {
+    "file_name": "style.css",
+    "file_hash": "67f2377cedf9eb31f81d59617545615bd34bea9baadff76af1c46e4e7a0dd55c",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/style.css?h=67f2377cedf9"
+   },
+   {
+    "file_name": "sw.js",
+    "file_hash": "9fa81ab2921548c3038155861b0d49baa4dea174d49ad6b246e20d598f210f9f",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/sw.js?h=9fa81ab29215"
+   },
+   {
+    "file_name": "version.js",
+    "file_hash": "d5d19b635d02547edd413aad5e93399dc951ab83d210701d27b963f639aa1f18",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/version.js?h=d5d19b635d02"
+   }
+  ]
+ }
 }

@@ -1,18 +1,48 @@
 // Работа без интернета (веб-версия): все файлы приложения кешируются при установке.
-// CACHE подставляет deploy_web.sh - хеш файлов, поэтому при каждом обновлении кеш новый, старый удаляется.
-// В сборке Android (Capacitor) не используется.
-const CACHE = 'bible-2acbd41eaa';
-const FILES = [
-  './', 'index.html', 'style.css', 'app.js', 'bible.js', 'version.js', 'manifest.webmanifest',
-  'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
-];
+// FILES (файл -> отпечаток SHA-256) и CACHE подставляет publish.py при публикации.
+// При обновлении неизменённые файлы (прежде всего текст Библии, 6 МБ) переносятся из старого кеша,
+// по сети качаются только изменённые. В сборке Android (Capacitor) не используется.
+const FILES = {
+ "./": "26f0b811f971e84c",
+ "index.html": "26f0b811f971e84c",
+ "style.css": "67f2377cedf9eb31",
+ "app.js": "a1e7a8b105d2062b",
+ "bible.js": "b58fc01acb7aa58d",
+ "version.js": "d5d19b635d02547e",
+ "manifest.webmanifest": "831dd37eea4fcc75",
+ "icons/icon-180.png": "c5cbd87c5e2aaef9",
+ "icons/icon-192.png": "097fc4ca1207929c",
+ "icons/icon-512.png": "a94f641647c86180"
+};
+const CACHE = 'bible-042b383c1d';
+const META = '__hashes';
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE)
-      .then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' }))))
-      .then(() => self.skipWaiting()),
-  );
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    const old = [];
+    for (const key of await caches.keys()) {
+      if (key === CACHE) continue;
+      const c = await caches.open(key);
+      const meta = await c.match(META);
+      if (meta) old.push({ c, hashes: await meta.json() });
+    }
+    await Promise.all(Object.entries(FILES).map(async ([file, hash]) => {
+      let r = null;
+      if (hash) {
+        for (const o of old) {
+          if (o.hashes[file] === hash && (r = await o.c.match(file))) break;
+        }
+      }
+      if (!r) {
+        r = await fetch(new Request(file, { cache: 'reload' }));
+        if (!r.ok) throw new Error(file + ': ' + r.status);
+      }
+      await cache.put(file, r);
+    }));
+    await cache.put(META, new Response(JSON.stringify(FILES)));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (e) => {

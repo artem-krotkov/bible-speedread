@@ -747,7 +747,7 @@ function showHistory() {
   imp.addEventListener('click', () => $('import-file').click());
   tools.append(exp, imp, node('p', 'summary',
     'Файл пригодится при переустановке приложения или смене телефона.'),
-  node('p', 'summary', 'Версия ' + (window.APP_VERSION || 'без номера')));
+  node('p', 'summary', versionLine()));
 
   el.menuList.replaceChildren(stats, list, tools);
   el.menuList.scrollTop = 0;
@@ -867,7 +867,7 @@ function showHelp() {
     for (const line of lines) ul.append(node('li', '', line));
     box.append(node('h3', '', title), ul);
   }
-  box.append(node('p', 'summary', 'Версия ' + (window.APP_VERSION || 'без номера')));
+  box.append(node('p', 'summary', versionLine()));
   el.menuList.replaceChildren(box);
   el.menuList.scrollTop = 0;
 }
@@ -896,6 +896,8 @@ window.addEventListener('resize', () => { measure(); render(); });
 measure();
 el.wpm.textContent = wpm;
 showPaused();
+// новая веб-часть запустилась - иначе через 10 с модуль обновлений вернёт прежнюю
+if (plugins.CapacitorUpdater) plugins.CapacitorUpdater.notifyAppReady().catch(() => { /* ок */ });
 
 // веб-версия: работа без интернета и автообновление (в сборке Android не нужна).
 // Новая версия ставится в фоне; страницу перезагружаем, когда не читают и меню закрыто - место сохранено
@@ -966,27 +968,66 @@ if (GA_ID) {
   document.head.append(s);
 }
 
-// ---------- обновление Android-приложения (APK не из магазина) ----------
-// При запуске и возврате из фона читаем android.json с сайта (его пишет publish_apk.sh);
-// если там номер больше своего - предлагаем скачать новый APK (откроется браузер, затем установщик Android)
+// ---------- обновления Android-приложения (не из магазина) ----------
+// android.json на сайте (пишет publish.py): code/name/url/notes - последний APK;
+// web - последняя веб-часть: номер, минимальный APK (min_native), файлы с отпечатками SHA-256.
+// Веб-часть (код, тексты, ритм) обновляется тихо: модуль Capgo качает только изменённые файлы
+// (остальные, например текст Библии, берёт из APK или прошлых обновлений), включает новую версию,
+// когда приложение свёрнуто или перезапущено, а если она не запустилась - возвращает прежнюю.
+// Новый APK (иконка, модули телефона) - через окно «Обновить»: браузер, затем установщик Android.
 
 const UPDATE_URL = 'https://artem-krotkov.github.io/bible-speedread/android.json';
-// тексты согласованы 22.10.2026; строку «что нового» (notes) пишет publish_apk.sh
+// тексты согласованы 22.10.2026; строку «что нового» (notes) пишет publish.py
 const UPDATE_TEXT = {
   title: 'Вышла версия {N}',
   go: 'Обновить',
   later: 'Позже',
   after: 'Скачивается новая версия. Когда загрузится - откройте файл и нажмите «Обновить» (если Android спросит разрешение на установку - разрешите). Место чтения и история сохранятся.',
 };
+const updater = plugins.CapacitorUpdater;
+let native = null; // {build: номер APK, version: '0.1.N'}
 let updateLater = false;
+let checking = false;
+let webReady = 0;
+
+// «Версия 0.1.12 от 22.10.2026 17:00 · приложение 0.1.10» (вторая часть - если APK старше веб-части)
+function versionLine() {
+  let s = 'Версия ' + (window.APP_VERSION || 'без номера');
+  if (native && native.version && !String(window.APP_VERSION).startsWith(native.version + ' ')) s += ' · приложение ' + native.version;
+  return s;
+}
+
+async function nativeInfo() {
+  if (native || !plugins.App) return native;
+  const i = await plugins.App.getInfo();
+  native = { build: Number(i.build) || 0, version: i.version };
+  if (window.gtag) window.gtag('set', 'user_properties', { apk_version: native.version });
+  return native;
+}
 
 async function checkUpdate() {
-  if (!window.Capacitor || !window.APP_CODE || updateLater || !$('update').hidden) return;
+  if (!window.Capacitor || checking) return;
+  checking = true;
   try {
+    const n = await nativeInfo();
+    if (!n) return;
     const r = await fetch(UPDATE_URL + '?t=' + Date.now(), { cache: 'no-store' });
     const u = await r.json();
-    if (u.code > window.APP_CODE && u.url) showUpdate(u);
-  } catch (e) { /* нет сети - в другой раз */ }
+    if (u.code > n.build && u.url && !updateLater && $('update').hidden) showUpdate(u);
+    const w = u.web;
+    if (updater && w && w.code > (window.APP_WEB || 0) && n.build >= w.min_native && webReady !== w.code) {
+      const { bundles } = await updater.list();
+      let b = bundles.find((x) => x.version === w.name && x.status === 'success');
+      if (!b) b = await updater.download({ url: UPDATE_URL, version: w.name, manifest: w.manifest });
+      await updater.next({ id: b.id });
+      webReady = w.code;
+      track('web_update_ready', { to: w.name });
+    }
+  } catch (e) {
+    /* нет сети или не скачалось - в другой раз */
+  } finally {
+    checking = false;
+  }
 }
 
 function showUpdate(u) {
