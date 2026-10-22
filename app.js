@@ -934,7 +934,7 @@ const GA_ID = 'G-YM6LX4Q5TX';
 const PLATFORM = window.Capacitor ? 'android_apk'
   : isIos ? (standalone ? 'iphone_app' : 'iphone_safari')
   : standalone ? 'web_app' : 'browser';
-// «0.1.8 22.10.2026» или «веб 22.10.2026»
+// «0.1.8 22.10.2026» - номер сборки и дата (у веба - дата публикации)
 const VERSION = (window.APP_VERSION || '').replace(' от ', ' ').replace(/ \d\d:\d\d$/, '');
 
 function deviceId() {
@@ -971,8 +971,13 @@ if (GA_ID) {
 // если там номер больше своего - предлагаем скачать новый APK (откроется браузер, затем установщик Android)
 
 const UPDATE_URL = 'https://artem-krotkov.github.io/bible-speedread/android.json';
-// тексты на согласовании
-const UPDATE_TEXT = { title: '…', go: '…', later: '…', after: '…' };
+// тексты согласованы 22.10.2026; строку «что нового» (notes) пишет publish_apk.sh
+const UPDATE_TEXT = {
+  title: 'Вышла версия {N}',
+  go: 'Обновить',
+  later: 'Позже',
+  after: 'Скачивается новая версия. Когда загрузится - откройте файл и нажмите «Обновить» (если Android спросит разрешение на установку - разрешите). Место чтения и история сохранятся.',
+};
 let updateLater = false;
 
 async function checkUpdate() {
