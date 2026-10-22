@@ -41,16 +41,20 @@ const AFTER = new Set(['ли', 'же', 'ж', 'бы', 'б']);
 const NEG = new Set(['не', 'ни']);
 const CHUNK_MAX = 4;
 const bare = (w) => w.toLowerCase().replace(/^["«(]+/, '');
+// конец предложения, в том числе внутри прямой речи: «камни?",», «так? —»
+const SENT_END = /[.!?…]["»”')]*(\s*[,;:\-—]["»”')]*)?$/;
 const cache = new Map();
 
 // показ: t - текст, v - стих, o - номер первого слова в стихе, k - сколько слов,
-// m - границы основного слова в t (на нём красная буква), w - номер показа в стихе
+// m - границы основного слова в t (на нём красная буква), w - номер показа в стихе,
+// s - первое слово предложения (после паузы на точке/вопросе глазу нужно время)
 function tokensOf(b, c) {
   const key = b + ':' + c;
   if (cache.has(key)) return cache.get(key);
   const book = BOOKS[b];
   const title = book.s === 'Пс' ? 'Псалом ' + (c + 1) : book.n + ', глава ' + (c + 1);
   const list = [{ t: title, h: true, v: -1, o: 0, w: 0, k: 0 }];
+  let afterEnd = true;
   book.c[c].forEach((verse, v) => {
     const words = [];
     for (const part of verse.split(/\s+/)) {
@@ -78,7 +82,10 @@ function tokensOf(b, c) {
       });
       k++;
     }
-    units.forEach((u, w) => list.push({ ...u, v, w, e: w === units.length - 1 }));
+    units.forEach((u, w) => {
+      list.push({ ...u, v, w, e: w === units.length - 1, s: afterEnd });
+      afterEnd = SENT_END.test(u.t);
+    });
   });
   if (cache.size > 6) cache.delete(cache.keys().next().value);
   cache.set(key, list);
@@ -257,12 +264,14 @@ function delayFor(t) {
   // длинные слова дольше; очень длинные (от 14 букв) - заметно дольше
   if (n > 13) d *= Math.min(2.5, 1.48 + (n - 13) * 0.12);
   else if (n > 7) d *= 1 + (n - 7) * 0.08;
-  if (/[.!?…]["»”')]*$/.test(t.t)) d *= 2.2;
+  if (SENT_END.test(t.t)) d *= 2.2;
   else if (/[,;:\-—]["»”')]*$/.test(t.t)) d *= 1.6;
   if (t.e) d *= 1.15;
   // каждое прицепленное служебное слово +40%, отрицание ещё +10%
   if (t.k > 1) d *= 1 + 0.4 * (t.k - 1);
   if (t.g) d *= 1.1;
+  // начало предложения: после длинной паузы короткое «Он», «я» иначе мелькает
+  if (t.s) d *= n <= 3 ? 1.5 : 1.25;
   return d;
 }
 
