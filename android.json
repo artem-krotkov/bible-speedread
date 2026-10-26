@@ -5,15 +5,15 @@
  "notes": "Дальше обновления будут приходить сами, без скачивания файла",
  "native_hash": "8a0cf34b3ec2c4f5f53be063af3188c604f6c47ec0f83d16dbade7b9ac99a3d5",
  "web": {
-  "code": 12,
-  "name": "0.1.12",
+  "code": 13,
+  "name": "0.1.13",
   "min_native": 10,
-  "notes": "Страница о проекте: описание, установка, связь. Открывается из Справки",
+  "notes": "Ровнее ритм: короткие слова больше не проскакивают. Число в настройке теперь - реальная скорость чтения, поэтому сохранённая скорость пересчитана (например, 300 стало 275), читать будет так же",
   "manifest": [
    {
     "file_name": "app.js",
-    "file_hash": "a19759e864ea4a52a8c3ba577c1239e7589a210f4a83249802264935431927eb",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/app.js?h=a19759e864ea"
+    "file_hash": "666e62cd17a42ba447c11712cd39303e3dcd7a1bba78cb2bb56b062863a98304",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/app.js?h=666e62cd17a4"
    },
    {
     "file_name": "bible.js",
@@ -52,13 +52,13 @@
    },
    {
     "file_name": "sw.js",
-    "file_hash": "f99158b0435c6c151be0b09c63cb6cd9026aa5857a96f7a0b9e6eb954985e993",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/sw.js?h=f99158b0435c"
+    "file_hash": "fd7abb9182fe864b9a7be861200a8277987748b79d3dc1bb17ab7830e980ab3f",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/sw.js?h=fd7abb9182fe"
    },
    {
     "file_name": "version.js",
-    "file_hash": "657a449d86f4c331883bfdc356c7b7f766a1d2c2aee31ad25296d83b16153ba7",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/version.js?h=657a449d86f4"
+    "file_hash": "e8af34385c1accf6e8419ad2a55283b53ad4e448d4fa59043eb6cb044633ff3b",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/version.js?h=e8af34385c1a"
    }
   ]
  }

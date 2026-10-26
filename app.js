@@ -114,7 +114,18 @@ function resolve(s) {
 const normalize = (s) => (s && s.v === undefined ? (resolve(s) ? freeze(resolve(s)) : null) : s);
 
 let pos = resolve(load('pos', null)) || { ...START };
-let wpm = Math.min(WPM_MAX, Math.max(WPM_MIN, load('wpm', 300)));
+// ритм 2 (с 0.1.13): число в настройке = реальная скорость. При ритме 1 реальная была ~0,88 от числа,
+// поэтому сохранённую раньше скорость один раз пересчитываем - чтение ощущается так же, как до обновления
+const RHYTHM = 2;
+const roundSpeed = (w) => Math.min(WPM_MAX, Math.max(WPM_MIN, w < 500 ? Math.round(w / 25) * 25 : Math.round(w / 50) * 50));
+const fromRhythm1 = (w) => roundSpeed(w * 0.88);
+let wpm = load('wpm', null);
+if (wpm != null && load('rhythm', 1) < RHYTHM) {
+  wpm = fromRhythm1(wpm);
+  store('wpm', wpm);
+}
+store('rhythm', RHYTHM);
+wpm = roundSpeed(wpm ?? 275);
 
 const cur = () => tokensOf(pos.b, pos.c)[pos.i];
 
@@ -256,6 +267,9 @@ function showPaused() {
 
 // ---------- ритм ----------
 
+const RHYTHM_FLOOR = 1.43;
+const RHYTHM_SCALE = 0.7675;
+
 function delayFor(t) {
   const base = 60000 / wpm;
   if (t.h) return Math.max(900, base * 3);
@@ -272,7 +286,10 @@ function delayFor(t) {
   if (t.g) d *= 1.1;
   // начало предложения: после длинной паузы короткое «Он», «я» иначе мелькает
   if (t.s) d *= n <= 3 ? 1.5 : 1.25;
-  return d;
+  // ритм 2: ни один показ не короче среднего ритма (иначе короткие слова «разгоняются» на фоне пауз),
+  // и всё масштабировано так, чтобы по всей Библии реальная скорость совпадала с настройкой.
+  // Поменяли правила выше - пересчитать RHYTHM_SCALE: node tools/rhythm_check.js
+  return Math.max(d, base * RHYTHM_FLOOR) * RHYTHM_SCALE;
 }
 
 // ---------- воспроизведение: держишь палец - идёт, отпустил - пауза ----------
@@ -756,7 +773,7 @@ function showHistory() {
 // ---------- сохранение прогресса в файл ----------
 
 function progressData() {
-  return { app: 'bible-speedread', version: 1, exported: new Date().toISOString(), pos: freeze(pos), wpm, history: readHistory, days, read: readMap };
+  return { app: 'bible-speedread', version: 1, exported: new Date().toISOString(), pos: freeze(pos), wpm, rhythm: RHYTHM, history: readHistory, days, read: readMap };
 }
 
 async function exportProgress() {
@@ -802,7 +819,7 @@ function mergeProgress(data) {
   readHistory.sort((a, b) => b.t1 - a.t1);
   if (readHistory.length > HISTORY_MAX) readHistory.length = HISTORY_MAX;
   pos = resolve(data.pos) || pos;
-  if (data.wpm >= WPM_MIN && data.wpm <= WPM_MAX) wpm = data.wpm;
+  if (data.wpm >= WPM_MIN && data.wpm <= WPM_MAX) wpm = (data.rhythm || 1) < RHYTHM ? fromRhythm1(data.wpm) : data.wpm;
   store('read', readMap);
   store('days', days);
   store('history', readHistory);
