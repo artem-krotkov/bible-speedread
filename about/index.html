@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Библия: скорочтение</title>
+<meta name="description" content="Приложение для чтения Библии в режиме скорочтения по методике RSVP. Синодальный перевод, Android, iPhone и компьютер, без интернета.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:title" content="Библия: скорочтение">
+<meta property="og:description" content="Приложение для чтения Библии в режиме скорочтения по методике RSVP. Синодальный перевод, Android, iPhone и компьютер.">
+<meta property="og:url" content="https://artem-krotkov.github.io/bible-speedread/about/">
+<meta property="og:image" content="https://artem-krotkov.github.io/bible-speedread/about/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/icon-180.png">
+<style>
+:root {
+  --bg: #000;
+  --fg: #f2f2f2;
+  --text: #cfcfcf;
+  --dim: #8a8a8a;
+  --faint: #2a2a2a;
+  --card: #111;
+  --accent: #ff453a;
+}
+
+* { box-sizing: border-box; margin: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Roboto, "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 17px;
+  line-height: 1.55;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+
+a { color: var(--fg); text-decoration-color: var(--accent); text-underline-offset: 3px; }
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* верх */
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  font-size: 15px;
+}
+
+.top a { color: var(--dim); text-decoration: none; }
+.top a:hover { color: var(--fg); }
+
+/* первый экран */
+.hero {
+  display: grid;
+  gap: 28px;
+  padding: 28px 0 8px;
+}
+
+h1 {
+  color: var(--fg);
+  font-size: 38px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -.01em;
+}
+
+h1 .pivot { color: var(--accent); }
+
+.lead {
+  margin-top: 14px;
+  font-size: 19px;
+  color: var(--fg);
+}
+
+.shot {
+  justify-self: center;
+  width: 260px;
+  border: 1px solid var(--faint);
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+.shot img { display: block; width: 100%; height: auto; }
+
+@media (min-width: 720px) {
+  .hero { grid-template-columns: 1fr 260px; align-items: center; gap: 40px; padding-top: 48px; }
+  h1 { font-size: 46px; }
+}
+
+/* разделы */
+section { padding-top: 40px; }
+
+h2 {
+  margin-bottom: 14px;
+  color: var(--dim);
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+p + p, p + ul, ul + p { margin-top: 12px; }
+
+ul { padding: 0; list-style: none; }
+
+li {
+  position: relative;
+  padding-left: 18px;
+  margin-bottom: 6px;
+}
+
+li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: .72em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.note { color: var(--dim); font-size: 15px; }
+
+/* установка */
+.platforms { display: grid; gap: 10px; }
+
+.platform {
+  padding: 18px;
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.platform h3 {
+  margin-bottom: 8px;
+  color: var(--fg);
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.btn {
+  display: inline-block;
+  margin: 4px 0 10px;
+  padding: 12px 20px;
+  border-radius: 24px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.btn:hover { filter: brightness(1.1); }
+
+.btn small {
+  display: block;
+  font-size: 14px;
+  font-weight: 400;
+  opacity: .85;
+}
+
+.btn.ghost {
+  background: none;
+  border: 1px solid var(--faint);
+  color: var(--fg);
+}
+
+/* что нового */
+.changes li { padding-left: 0; margin-bottom: 10px; }
+.changes li::before { display: none; }
+.changes b { color: var(--fg); font-weight: 500; }
+.changes small { color: var(--dim); font-size: 14px; margin-left: 6px; }
+.changes span { display: block; }
+
+footer {
+  margin-top: 48px;
+  padding: 20px 0 32px;
+  border-top: 1px solid var(--faint);
+  color: var(--dim);
+  font-size: 15px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="top">
+  <a href="../">‹ К чтению</a>
+</nav>
+
+<header class="hero">
+  <div>
+    <h1>Би<span class="pivot">б</span>лия: скорочтение</h1>
+    <p class="lead">Это приложение для чтения Библии в режиме скорочтения по методике RSVP (быстрый последовательный показ слов).</p>
+  </div>
+  <div class="shot"><img src="screen.jpg" width="585" height="996" alt="Экран приложения: слово «возлюбил» с красной буквой, внизу стих От Иоанна 3:16"></div>
+</header>
+
+<section>
+  <h2>В чём суть</h2>
+  <p>Слова появляются по одному в центре экрана. Держите палец на экране - текст идёт, отпустили - пауза.</p>
+  <p>При обычном чтении глаза прыгают от слова к слову, останавливаются, иногда возвращаются назад. На эти движения уходит заметная часть времени. Здесь слова сами приходят в одну точку, и глазам не нужно двигаться.</p>
+  <p>В каждом слове одна буква выделена красным. Это точка, на которую взгляду удобнее всего опереться, чтобы узнать слово целиком. Красная буква всегда стоит на одном месте, поэтому взгляд не ищет начало следующего слова.</p>
+  <p>Ритм подстроен под текст:</p>
+  <ul>
+    <li>длинные слова, знаки препинания и конец стиха показываются дольше;</li>
+    <li>короткие слова («и», «в», «не») идут вместе с соседним словом.</li>
+  </ul>
+  <p>Начните с 250-300 слов в минуту. Если смысл ускользает - убавьте скорость: понимание важнее числа.</p>
+  <p>Синодальный перевод, 66 канонических книг. Работает без интернета. Другие переводы - в планах.</p>
+</section>
+
+<section id="install">
+  <h2>Установить</h2>
+  <div class="platforms">
+    <div class="platform">
+      <h3>Android</h3>
+      <a class="btn" id="apk" href="https://github.com/artem-krotkov/bible-speedread/releases/latest">Скачать приложение</a>
+      <p>Откройте скачанный файл. Если телефон спросит, разрешите установку из этого источника. Новые версии приходят сами, скачивать файл заново не нужно.</p>
+    </div>
+    <div class="platform">
+      <h3>iPhone</h3>
+      <p>Откройте <a href="../">страницу приложения</a> в Safari → «Поделиться» → «На экран Домой». Так приложение работает без интернета и не теряет прогресс.</p>
+    </div>
+    <div class="platform">
+      <h3>Компьютер</h3>
+      <a class="btn ghost" href="../">Открыть в браузере</a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Как читать</h2>
+  <ul>
+    <li>Держите палец на экране - слова идут. Отпустили - пауза.</li>
+    <li>Смотрите на красную букву: она всегда в одной точке.</li>
+    <li>Короткое касание у левого края - стих назад, у правого - вперёд.</li>
+    <li>Скорость - кнопки − и + на паузе. Начните с 250-300 слов в минуту.</li>
+    <li>В меню - выбор книги и главы, История, прогресс по книгам.</li>
+  </ul>
+</section>
+
+<section id="changes" hidden>
+  <h2>Что нового</h2>
+  <ul class="changes"></ul>
+</section>
+
+<section>
+  <h2>Связаться</h2>
+  <p>Есть идея или нашли ошибку - напишите мне в Telegram: <a href="https://t.me/artem_krotkov">@artem_krotkov</a></p>
+</section>
+
+<section>
+  <h2>Поддержать проект</h2>
+  <p>Приложение бесплатное и без рекламы. Если оно вам помогает и вы хотите поддержать его развитие финансово, напишите мне в Telegram: <a href="https://t.me/artem_krotkov">@artem_krotkov</a></p>
+</section>
+
+<section id="privacy">
+  <h2>Конфиденциальность</h2>
+  <p>Приложение не просит регистрации и не знает, кто вы.</p>
+  <p>Прогресс, история и настройки хранятся только на вашем устройстве. Чтобы перенести их на другой телефон, используйте «Сохранить прогресс в файл».</p>
+  <p>Чтобы понимать, как пользуются приложением, оно отправляет анонимную статистику в Google Analytics:</p>
+  <ul>
+    <li>случайный номер устройства;</li>
+    <li>тип устройства и версию приложения;</li>
+    <li>открытия приложения;</li>
+    <li>сколько слов и сколько времени вы прочитали, в какой книге, на какой скорости.</li>
+  </ul>
+  <p>Google Analytics также определяет примерную страну и город по интернет-адресу. Реклама и рекламное отслеживание отключены.</p>
+</section>
+
+<footer>Автор - Артём Кротков</footer>
+
+</div>
+<script>
+// кнопка Android - на последний APK (android.json пишет publish.py), список версий - changes.json
+fetch('../android.json', { cache: 'no-store' }).then((r) => r.json()).then((a) => {
+  if (!a.url) return;
+  const btn = document.getElementById('apk');
+  btn.href = a.url;
+  const small = document.createElement('small');
+  small.textContent = 'версия ' + a.name;
+  btn.append(small);
+}).catch(() => { /* остаётся ссылка на последний релиз */ });
+
+fetch('changes.json', { cache: 'no-store' }).then((r) => r.json()).then((list) => {
+  if (!list.length) return;
+  const ul = document.querySelector('.changes');
+  for (const c of list) {
+    const li = document.createElement('li');
+    const b = document.createElement('b');
+    b.textContent = c.v;
+    const small = document.createElement('small');
+    small.textContent = c.date;
+    const span = document.createElement('span');
+    span.textContent = c.notes;
+    li.append(b, small, span);
+    ul.append(li);
+  }
+  document.getElementById('changes').hidden = false;
+}).catch(() => { /* без списка версий */ });
+</script>
+</body>
+</html>

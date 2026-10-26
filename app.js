@@ -830,6 +830,9 @@ $('import-file').addEventListener('change', async (e) => {
 
 // ---------- справка ----------
 
+// страница о проекте: описание, установка, связь, конфиденциальность (папка about/, выкладывает publish.py)
+const ABOUT_URL = 'https://artem-krotkov.github.io/bible-speedread/about/';
+
 const HELP = [
   ['Как читать', [
     'Держите палец на экране - слова идут. Отпустили - пауза.',
@@ -867,7 +870,15 @@ function showHelp() {
     for (const line of lines) ul.append(node('li', '', line));
     box.append(node('h3', '', title), ul);
   }
-  box.append(node('p', 'summary', versionLine()));
+  const tools = node('div', 'tools');
+  const about = node('button', '', 'О проекте');
+  about.type = 'button';
+  about.addEventListener('click', () => {
+    track('about_open');
+    location.href = ABOUT_URL; // в Android внешний адрес Capacitor открывает в браузере
+  });
+  tools.append(about);
+  box.append(tools, node('p', 'summary', versionLine()));
   el.menuList.replaceChildren(box);
   el.menuList.scrollTop = 0;
 }

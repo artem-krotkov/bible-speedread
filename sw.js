@@ -6,15 +6,15 @@ const FILES = {
  "./": "26f0b811f971e84c",
  "index.html": "26f0b811f971e84c",
  "style.css": "67f2377cedf9eb31",
- "app.js": "a1e7a8b105d2062b",
+ "app.js": "a19759e864ea4a52",
  "bible.js": "b58fc01acb7aa58d",
- "version.js": "d46b9fc5d88de687",
+ "version.js": "657a449d86f4c331",
  "manifest.webmanifest": "831dd37eea4fcc75",
  "icons/icon-180.png": "c5cbd87c5e2aaef9",
  "icons/icon-192.png": "097fc4ca1207929c",
  "icons/icon-512.png": "a94f641647c86180"
 };
-const CACHE = 'bible-57db83e43e';
+const CACHE = 'bible-0e427bafe5';
 const META = '__hashes';
 
 self.addEventListener('install', (e) => {
