@@ -3,18 +3,18 @@
 // При обновлении неизменённые файлы (прежде всего текст Библии, 6 МБ) переносятся из старого кеша,
 // по сети качаются только изменённые. В сборке Android (Capacitor) не используется.
 const FILES = {
- "./": "26f0b811f971e84c",
- "index.html": "26f0b811f971e84c",
- "style.css": "67f2377cedf9eb31",
- "app.js": "666e62cd17a42ba4",
+ "./": "77c40ad3eb06a9e1",
+ "index.html": "77c40ad3eb06a9e1",
+ "style.css": "1fea486e532e423a",
+ "app.js": "4f581a9ead632950",
  "bible.js": "b58fc01acb7aa58d",
- "version.js": "e8af34385c1accf6",
+ "version.js": "44b2c25217025abe",
  "manifest.webmanifest": "831dd37eea4fcc75",
  "icons/icon-180.png": "c5cbd87c5e2aaef9",
  "icons/icon-192.png": "097fc4ca1207929c",
  "icons/icon-512.png": "a94f641647c86180"
 };
-const CACHE = 'bible-2efbd6640c';
+const CACHE = 'bible-96ce9542b1';
 const META = '__hashes';
 
 self.addEventListener('install', (e) => {

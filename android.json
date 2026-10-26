@@ -5,15 +5,15 @@
  "notes": "Дальше обновления будут приходить сами, без скачивания файла",
  "native_hash": "8a0cf34b3ec2c4f5f53be063af3188c604f6c47ec0f83d16dbade7b9ac99a3d5",
  "web": {
-  "code": 13,
-  "name": "0.1.13",
+  "code": 14,
+  "name": "0.1.14",
   "min_native": 10,
-  "notes": "Ровнее ритм: короткие слова больше не проскакивают. Число в настройке теперь - реальная скорость чтения, поэтому сохранённая скорость пересчитана (например, 300 стало 275), читать будет так же",
+  "notes": "Можно отметить стих (⚑ на паузе) и написать отзыв (Справка → «Написать отзыв») - сообщение придёт автору",
   "manifest": [
    {
     "file_name": "app.js",
-    "file_hash": "666e62cd17a42ba447c11712cd39303e3dcd7a1bba78cb2bb56b062863a98304",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/app.js?h=666e62cd17a4"
+    "file_hash": "4f581a9ead63295040a85d10306961a7f362f485438e127a23221b64b5954dfa",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/app.js?h=4f581a9ead63"
    },
    {
     "file_name": "bible.js",
@@ -37,8 +37,8 @@
    },
    {
     "file_name": "index.html",
-    "file_hash": "26f0b811f971e84cab3456ae1b434d6f50f21135ad2f19321edc5140cba655ed",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/index.html?h=26f0b811f971"
+    "file_hash": "77c40ad3eb06a9e131b713092f4dfda48e039ee4f0fad2e88e399b85da1ec0fa",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/index.html?h=77c40ad3eb06"
    },
    {
     "file_name": "manifest.webmanifest",
@@ -47,18 +47,18 @@
    },
    {
     "file_name": "style.css",
-    "file_hash": "67f2377cedf9eb31f81d59617545615bd34bea9baadff76af1c46e4e7a0dd55c",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/style.css?h=67f2377cedf9"
+    "file_hash": "1fea486e532e423aff3082ac5f8f13ed095122e8cacae91fd5a1dd89cd5357f5",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/style.css?h=1fea486e532e"
    },
    {
     "file_name": "sw.js",
-    "file_hash": "fd7abb9182fe864b9a7be861200a8277987748b79d3dc1bb17ab7830e980ab3f",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/sw.js?h=fd7abb9182fe"
+    "file_hash": "19879947d5438698f27ee878d599d5c3fbc9932a81a9f3865799661108475abe",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/sw.js?h=19879947d543"
    },
    {
     "file_name": "version.js",
-    "file_hash": "e8af34385c1accf6e8419ad2a55283b53ad4e448d4fa59043eb6cb044633ff3b",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/version.js?h=e8af34385c1a"
+    "file_hash": "44b2c25217025abe52a5f7d7708d234495310d96d61e814e7c361a9961da1b71",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/version.js?h=44b2c2521702"
    }
   ]
  }

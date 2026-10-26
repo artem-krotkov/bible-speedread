@@ -43,9 +43,23 @@ button {
 }
 
 #top {
+  position: relative;
   padding-top: 14px;
   transition: opacity .25s;
 }
+
+/* отметить стих (на паузе) */
+#flag {
+  position: absolute;
+  top: 8px;
+  right: -8px;
+  width: 44px;
+  height: 44px;
+  color: var(--dim);
+  font-size: 18px;
+}
+
+#flag[hidden] { display: none; }
 
 #ref {
   display: block;
@@ -504,4 +518,99 @@ body.has-update #hint { display: none; }
   padding: 0 6px;
   font-size: 14px;
   white-space: nowrap;
+}
+
+/* отзыв и отметка стиха */
+.form textarea,
+.form input {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid var(--faint);
+  border-radius: 10px;
+  background: #111;
+  color: var(--fg);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  resize: vertical;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.form textarea::placeholder,
+.form input::placeholder { color: var(--dim); }
+
+.form textarea:focus,
+.form input:focus { outline: none; border-color: var(--dim); }
+
+.form .row {
+  display: flex;
+  gap: 8px;
+}
+
+.form .row button,
+.form > button {
+  flex: 1;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1px solid var(--faint);
+  color: var(--dim);
+}
+
+.form button.primary {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+.form button:disabled { opacity: .4; }
+
+.flag-ref {
+  margin: 4px 2px 6px;
+  color: var(--fg);
+  font-size: 17px;
+}
+
+.flag-verse {
+  margin: 0 2px 16px;
+  color: var(--dim);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.flag-verse sup {
+  margin-right: .3em;
+  font-size: .7em;
+}
+
+.flag-verse mark {
+  background: none;
+  color: var(--fg);
+  text-decoration: underline var(--accent);
+  text-underline-offset: 3px;
+}
+
+.reasons {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.reasons button {
+  min-height: 48px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #111;
+  text-align: left;
+}
+
+.reasons button.on { outline: 1px solid var(--accent); }
+
+.sent {
+  margin: 24px 2px;
+  color: var(--fg);
+  font-size: 17px;
+  text-align: center;
 }

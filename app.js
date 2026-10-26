@@ -239,6 +239,7 @@ function render() {
   }
   const book = BOOKS[pos.b];
   el.ref.textContent = book.n + ' ' + (pos.c + 1) + (t.v >= 0 ? ':' + (t.v + 1) : '');
+  $('flag').hidden = !!t.h;
   el.bar.style.width = (100 * pos.i / Math.max(1, tokensOf(pos.b, pos.c).length - 1)) + '%';
 }
 
@@ -512,7 +513,8 @@ function release(e) {
 el.reader.addEventListener('pointerup', release);
 el.reader.addEventListener('pointercancel', release);
 el.reader.addEventListener('lostpointercapture', release);
-document.addEventListener('contextmenu', (e) => e.preventDefault());
+// в полях отзыва меню (вставить, выделить) нужно
+document.addEventListener('contextmenu', (e) => { if (!e.target.closest('textarea, input')) e.preventDefault(); });
 
 // на компьютере: держать пробел
 document.addEventListener('keydown', (e) => {
@@ -860,6 +862,7 @@ const HELP = [
     'Короткое касание у левого края - стих назад, у правого - вперёд.',
     'Кнопки «‹ стих» и «стих ›» внизу делают то же самое.',
     'Касание названия книги вверху - выбор книги и главы.',
+    '⚑ на паузе - отметить стих: слишком быстро, ошибка в тексте или другое.',
   ]],
   ['Скорость', [
     'Кнопки − и + на паузе, от 100 до 1000 слов в минуту.',
@@ -888,6 +891,10 @@ function showHelp() {
     box.append(node('h3', '', title), ul);
   }
   const tools = node('div', 'tools');
+  const write = node('button', '', 'Написать отзыв');
+  write.type = 'button';
+  write.addEventListener('click', showFeedback);
+  tools.append(write);
   const about = node('button', '', 'О проекте');
   about.type = 'button';
   about.addEventListener('click', () => {
@@ -995,6 +1002,143 @@ if (GA_ID) {
   s.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_ID;
   document.head.append(s);
 }
+
+// ---------- отзывы и отметки стихов ----------
+// Уходят на сервер (папка feedback/, Cloudflare Worker): строка в базе + сообщение автору в Telegram.
+// Без сети ждут в очереди rsvp.outbox и досылаются при запуске, при появлении сети и при возврате в приложение.
+// Номер устройства не шлём - на странице «О проекте» обещаны только текст, стих, версия и тип устройства.
+
+const FEEDBACK_URL = 'https://bible-speedread-feedback.imenie.workers.dev/send';
+const REASONS = [['fast', 'Слишком быстро'], ['typo', 'Ошибка в тексте'], ['other', 'Другое']];
+const SENT_TEXT = {
+  ok: 'Спасибо! Отправлено.',
+  offline: 'Нет интернета - отправим, когда появится.',
+  error: 'Не получилось отправить. Попробуйте позже.',
+};
+let outbox = load('outbox', []);
+let delivering = null;
+
+// text/plain - простой запрос, без предварительного CORS-запроса
+function deliver() {
+  if (delivering) return delivering;
+  delivering = (async () => {
+    try {
+      while (outbox.length) {
+        if (navigator.onLine === false) return 'offline';
+        let r;
+        try {
+          r = await fetch(FEEDBACK_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(outbox[0]) });
+        } catch (e) {
+          return 'offline';
+        }
+        if (r.status === 429 || r.status >= 500) return 'error'; // остаётся в очереди, повторим позже
+        outbox.shift();
+        store('outbox', outbox);
+        if (!r.ok) return 'error';
+      }
+      return 'ok';
+    } finally {
+      delivering = null;
+    }
+  })();
+  return delivering;
+}
+
+async function submit(item) {
+  outbox.push({
+    ...item,
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    wpm, rhythm: RHYTHM, version: VERSION, platform: PLATFORM,
+  });
+  store('outbox', outbox);
+  track(item.kind === 'verse' ? 'verse_flag' : 'feedback', item.reason ? { reason: item.reason } : {});
+  if (delivering) await delivering;
+  return deliver();
+}
+
+function textField(tag, placeholder, max) {
+  const f = document.createElement(tag);
+  f.placeholder = placeholder;
+  f.maxLength = max;
+  if (tag === 'textarea') f.rows = 5;
+  return f;
+}
+
+function showFeedback() {
+  el.menuTitle.textContent = 'Отзыв';
+  subScreen('Назад');
+  const box = node('div', 'form');
+  const text = textField('textarea', 'Что понравилось, что мешает, чего не хватает', 2000);
+  const contact = textField('input', 'Как с вами связаться (необязательно)', 200);
+  const send = node('button', 'primary', 'Отправить');
+  send.type = 'button';
+  send.addEventListener('click', async () => {
+    if (!text.value.trim()) {
+      text.focus();
+      return;
+    }
+    send.disabled = true;
+    const res = await submit({ kind: 'feedback', text: text.value, contact: contact.value });
+    box.replaceChildren(node('p', 'sent', SENT_TEXT[res]));
+  });
+  box.append(text, contact, send);
+  el.menuList.replaceChildren(box);
+  el.menuList.scrollTop = 0;
+}
+
+function openFlag() {
+  const t = cur();
+  if (t.h) return;
+  pause();
+  const at = { b: pos.b, c: pos.c, v: t.v, word: t.t };
+  el.menuTitle.textContent = 'Отметить стих';
+  el.menuBack.hidden = true;
+  $('menu-help').hidden = true;
+  el.tabs.hidden = true;
+
+  const box = node('div', 'form');
+  const verse = node('p', 'flag-verse');
+  verse.innerHTML = el.context.innerHTML;
+  const reasons = node('div', 'reasons');
+  const comment = textField('textarea', 'Комментарий (необязательно)', 2000);
+  comment.rows = 3;
+  const send = node('button', 'primary', 'Отправить');
+  const cancel = node('button', '', 'Отмена');
+  send.type = cancel.type = 'button';
+  send.disabled = true;
+  let reason = null;
+  for (const [code, label] of REASONS) {
+    const btn = node('button', '', label);
+    btn.type = 'button';
+    btn.addEventListener('click', () => {
+      reason = code;
+      reasons.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === btn));
+      send.disabled = false;
+    });
+    reasons.append(btn);
+  }
+  cancel.addEventListener('click', closeMenu);
+  send.addEventListener('click', async () => {
+    send.disabled = true;
+    const res = await submit({
+      kind: 'verse', reason, text: comment.value,
+      ref: BOOKS[at.b].s + ' ' + (at.c + 1) + ':' + (at.v + 1), b: at.b, c: at.c, v: at.v, word: at.word,
+    });
+    box.replaceChildren(node('p', 'sent', SENT_TEXT[res]));
+    if (res === 'ok') setTimeout(() => { if (!el.menu.hidden && box.isConnected) closeMenu(); }, 1500);
+  });
+  const row = node('div', 'row');
+  row.append(cancel, send);
+  box.append(node('p', 'flag-ref', BOOKS[at.b].n + ' ' + (at.c + 1) + ':' + (at.v + 1)), verse, reasons, comment, row);
+  el.menuList.replaceChildren(box);
+  el.menuList.scrollTop = 0;
+  el.menu.hidden = false;
+}
+
+$('flag').addEventListener('click', openFlag);
+window.addEventListener('online', () => { if (outbox.length) deliver(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && outbox.length) deliver(); });
+if (outbox.length) deliver();
 
 // ---------- обновления Android-приложения (не из магазина) ----------
 // android.json на сайте (пишет publish.py): code/name/url/notes - последний APK;
