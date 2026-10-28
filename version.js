@@ -1,2 +1,2 @@
-window.APP_VERSION = "0.1.14 от 26.10.2026 18:27";
-window.APP_WEB = 14;
+window.APP_VERSION = "0.1.15 от 28.10.2026 18:10";
+window.APP_WEB = 15;

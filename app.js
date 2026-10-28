@@ -209,12 +209,42 @@ function pivotOf(t) {
   return p < a ? letters[0] : letters[letters.length - 1];
 }
 
+// ---------- шрифт и размер слова ----------
+
+// шрифты на выбор (Настройки → Шрифт): код, название, CSS font-family
+const FONTS = [
+  ['system', 'Обычный', 'Roboto, "Segoe UI", system-ui, sans-serif'],
+  ['condensed', 'Roboto Condensed', '"Roboto Condensed", Roboto, system-ui, sans-serif'],
+  ['literata', 'Literata', 'Literata, Georgia, serif'],
+];
+let font = FONTS.find((f) => f[0] === load('font', 'system')) || FONTS[0];
+const ctx = document.createElement('canvas').getContext('2d');
+
+function textWidth(s, fs) {
+  ctx.font = fs + 'px ' + font[2];
+  return ctx.measureText(s).width;
+}
+
+// размер слова постоянный, чтобы не скакал: по обе стороны от красной буквы влезает FIT_CHARS знаков
+// средней ширины (99,9% показов); длиннее - только 1 показ из 1000, его уменьшаем
+const FIT_CHARS = 10.5;
+const SAMPLE = 'и сказал Бог: да будет свет. и стал свет, и увидел Бог свет, что он хорош';
 let baseFs = 44;
 
 function measure() {
   const w = el.word.clientWidth || window.innerWidth - 32;
-  baseFs = Math.max(30, Math.min(60, w * 0.11));
+  const charW = textWidth(SAMPLE, 100) / 100 / SAMPLE.length;
+  baseFs = Math.min(60, (w / 2) * 0.96 / (FIT_CHARS * charW));
   el.word.style.setProperty('--line', Math.ceil(baseFs * 1.3) + 'px');
+}
+
+function applyFont(f) {
+  font = f;
+  document.documentElement.style.setProperty('--read-font', f[2]);
+  measure();
+  render();
+  // свой шрифт грузится не сразу - пересчитать размер, когда загрузится
+  if (document.fonts) document.fonts.load('40px ' + f[2], SAMPLE).then(() => { if (font === f) { measure(); render(); } }, () => {});
 }
 
 function render() {
@@ -231,10 +261,11 @@ function render() {
     el.wl.textContent = t.t.slice(0, p);
     el.wp.textContent = t.t[p] || '';
     el.wr.textContent = t.t.slice(p + 1);
-    // крупно, но так, чтобы длинное слово влезло по обе стороны от красной буквы
-    const half = Math.max(p, t.t.length - p - 1) + 0.5;
+    // размер постоянный; слово, которое не влезает по обе стороны от красной буквы, уменьшаем
     const w = el.word.clientWidth || window.innerWidth - 32;
-    const fs = Math.min(baseFs, (w / 2) * 0.96 / (half * 0.58));
+    const room = (w - textWidth(t.t[p] || '', baseFs)) / 2 * 0.98;
+    const need = Math.max(textWidth(t.t.slice(0, p), baseFs), textWidth(t.t.slice(p + 1), baseFs));
+    const fs = need > room ? baseFs * room / need : baseFs;
     el.word.style.setProperty('--fs', fs.toFixed(1) + 'px');
   }
   const book = BOOKS[pos.b];
@@ -442,6 +473,7 @@ function step() {
 }
 
 function pause() {
+  hold = null;
   if (!playing) return;
   playing = false;
   clearTimeout(timer);
@@ -452,12 +484,54 @@ function pause() {
   reloadIfIdle();
 }
 
+// управление (Настройки → Управление), тексты согласованы 28.10.2026:
+// hold - держишь палец - идёт, отпустил - пауза; tap - касание: старт и стоп;
+// still - касание - старт, держишь палец - пауза (отпустил - дальше), короткое касание - остановка
+const MODES = [
+  ['hold', 'Держать палец', 'Держите палец на экране - слова идут. Отпустили - пауза.',
+    ['Держите палец на экране - слова побегут.', 'Отпустите - пауза.', 'Касание у левого или правого края - стих назад или вперёд.']],
+  ['tap', 'Касание: старт и стоп', 'Коснулись - слова идут. Коснулись ещё раз - пауза.',
+    ['Коснитесь экрана - слова побегут.', 'Коснитесь ещё раз - пауза.', 'Касание у левого или правого края - стих назад или вперёд.']],
+  ['still', 'Держать - пауза', 'Коснулись - слова идут. Держите палец - пауза, отпустили - дальше. Короткое касание - остановка.',
+    ['Коснитесь экрана - слова побегут.', 'Держите палец - пауза, отпустите - дальше.', 'Короткое касание - остановка.']],
+];
+let mode = MODES.find((m) => m[0] === load('mode', 'hold')) || MODES[0];
+
+function showHint() {
+  const hint = $('hint');
+  hint.replaceChildren();
+  mode[3].forEach((line, k) => {
+    if (k) hint.append(document.createElement('br'));
+    hint.append(line);
+  });
+}
+
 const pointers = new Set();
 
-// у краёв: короткое касание - стих назад/вперёд, удержание - чтение, как везде
+// у краёв: короткое касание - стих назад/вперёд, удержание - чтение (в режиме «держать палец»)
 const TAP_MS = 220;
 const TAP_MOVE = 20;
 let edge = null;
+let starter = null; // «держать - пауза»: касание на паузе, чтение начнётся, когда палец отпустят
+let hold = null; // «держать - пауза»: палец на экране во время чтения {id, t}
+
+// «держать - пауза»: слова стоят, пока палец на экране; время удержания в чтение не входит
+function holdStart(id) {
+  clearTimeout(timer);
+  hold = { id, t: Date.now() };
+}
+
+function holdEnd(stop) {
+  const h = hold;
+  hold = null;
+  if (!playing) return;
+  if (stop) {
+    pause();
+    return;
+  }
+  if (session) session.t += Date.now() - h.t;
+  timer = setTimeout(step, delayFor(cur()));
+}
 
 function edgeSide(x) {
   const w = el.reader.clientWidth;
@@ -478,6 +552,20 @@ el.reader.addEventListener('pointerdown', (e) => {
   pointers.add(e.pointerId);
   try { el.reader.setPointerCapture(e.pointerId); } catch (err) { /* ок */ }
   const side = edgeSide(e.clientX);
+  if (mode[0] !== 'hold') {
+    if (pointers.size > 1) return;
+    if (playing) {
+      if (mode[0] === 'tap') pause();
+      else holdStart(e.pointerId);
+    } else if (side) {
+      edge = { id: e.pointerId, side, x: e.clientX, y: e.clientY };
+    } else if (mode[0] === 'tap') {
+      play();
+    } else {
+      starter = e.pointerId;
+    }
+    return;
+  }
   if (side && !playing && pointers.size === 1) {
     edge = { id: e.pointerId, side, x: e.clientX, y: e.clientY };
     edge.timer = setTimeout(() => { edge = null; play(); }, TAP_MS);
@@ -491,7 +579,7 @@ el.reader.addEventListener('pointermove', (e) => {
   if (Math.hypot(e.clientX - edge.x, e.clientY - edge.y) > TAP_MOVE) {
     clearTimeout(edge.timer);
     edge = null;
-    play();
+    if (mode[0] === 'hold') play();
   }
 });
 
@@ -507,7 +595,16 @@ function release(e) {
       flash(side);
     }
   }
-  if (!pointers.size) pause();
+  if (mode[0] === 'still') {
+    if (starter === e.pointerId) {
+      starter = null;
+      if (e.type === 'pointerup') play();
+    }
+    // короткое касание - остановка, удержание - пауза до отпускания
+    if (hold && hold.id === e.pointerId) holdEnd(e.type !== 'pointerup' || Date.now() - hold.t < TAP_MS);
+    return;
+  }
+  if (mode[0] === 'hold' && !pointers.size) pause();
 }
 
 el.reader.addEventListener('pointerup', release);
@@ -524,7 +621,9 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.code === 'Space') {
     e.preventDefault();
-    if (!e.repeat) play();
+    if (e.repeat) return;
+    if (mode[0] === 'hold' || !playing) play();
+    else pause();
   } else if (!playing && e.key === 'ArrowLeft') prevVerse();
   else if (!playing && e.key === 'ArrowRight') nextVerse();
   else if (e.key === '+' || e.key === '=') changeWpm(1);
@@ -532,7 +631,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('keyup', (e) => {
-  if (e.code === 'Space') pause();
+  if (e.code === 'Space' && mode[0] === 'hold') pause();
 });
 
 document.addEventListener('visibilitychange', () => {
@@ -592,17 +691,23 @@ function node(tag, cls, text) {
   return n;
 }
 
+// кнопки «?» и ⚙ в шапке меню - только на вкладках
+function menuIcons(show) {
+  $('menu-help').hidden = !show;
+  $('menu-settings').hidden = !show;
+}
+
 // вложенный экран меню (главы книги, справка): слева «‹ назад», вкладки скрыты
 function subScreen(backLabel) {
   el.menuBack.textContent = '‹ ' + backLabel;
   el.menuBack.hidden = false;
-  $('menu-help').hidden = true;
+  menuIcons(false);
   el.tabs.hidden = true;
 }
 
 function showMenuTab() {
   el.menuBack.hidden = true;
-  $('menu-help').hidden = false;
+  menuIcons(true);
   el.tabs.hidden = false;
   el.tabs.querySelectorAll('button').forEach((btn) => btn.classList.toggle('on', btn.dataset.tab === tab));
   if (tab === 'hist') showHistory();
@@ -852,11 +957,13 @@ $('import-file').addEventListener('change', async (e) => {
 // страница о проекте: описание, установка, связь, конфиденциальность (папка about/, выкладывает publish.py)
 const ABOUT_URL = 'https://artem-krotkov.github.io/bible-speedread/about/';
 
+// null - строка о выбранном управлении (MODES)
 const HELP = [
   ['Как читать', [
-    'Держите палец на экране - слова идут. Отпустили - пауза.',
+    null,
     'Смотрите на красную букву: она всегда в одной точке, глаза не двигаются.',
     'На паузе внизу виден весь стих, текущее слово подчёркнуто.',
+    'Способ управления и шрифт - Меню → ⚙ Настройки.',
   ]],
   ['Переходы', [
     'Короткое касание у левого края - стих назад, у правого - вперёд.',
@@ -887,7 +994,7 @@ function showHelp() {
   const box = node('div', 'help');
   for (const [title, lines] of HELP) {
     const ul = node('ul');
-    for (const line of lines) ul.append(node('li', '', line));
+    for (const line of lines) ul.append(node('li', '', line ?? mode[2]));
     box.append(node('h3', '', title), ul);
   }
   const tools = node('div', 'tools');
@@ -907,6 +1014,47 @@ function showHelp() {
   el.menuList.scrollTop = 0;
 }
 
+// ---------- настройки: управление и шрифт ----------
+
+function showSettings() {
+  el.menuTitle.textContent = 'Настройки';
+  subScreen('Назад');
+  const box = node('div', 'help');
+  const modes = node('div', 'choices');
+  for (const m of MODES) {
+    const btn = node('button', m === mode ? 'on' : '', m[1]);
+    btn.type = 'button';
+    btn.append(node('small', '', m[2].replace(/ - /g, ' - '))); // тире не переносится в начало строки
+    btn.addEventListener('click', () => {
+      mode = m;
+      store('mode', m[0]);
+      showHint();
+      modes.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === btn));
+    });
+    modes.append(btn);
+  }
+  const fonts = node('div', 'choices');
+  for (const f of FONTS) {
+    const btn = node('button', f === font ? 'on' : '');
+    btn.type = 'button';
+    const word = 'благосклонен';
+    const p = pivotIndex(word);
+    const sample = node('span', 'font-sample', word.slice(0, p));
+    sample.style.fontFamily = f[2];
+    sample.append(node('i', '', word[p]), word.slice(p + 1));
+    btn.append(sample, node('small', '', f[1]));
+    btn.addEventListener('click', () => {
+      store('font', f[0]);
+      applyFont(f);
+      fonts.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === btn));
+    });
+    fonts.append(btn);
+  }
+  box.append(node('h3', '', 'Управление'), modes, node('h3', '', 'Шрифт'), fonts);
+  el.menuList.replaceChildren(box);
+  el.menuList.scrollTop = 0;
+}
+
 function openHelp() {
   pause();
   tab = pos.b < OT ? 'ot' : 'nt';
@@ -916,6 +1064,7 @@ function openHelp() {
 
 el.ref.addEventListener('click', openMenu);
 $('menu-help').addEventListener('click', showHelp);
+$('menu-settings').addEventListener('click', showSettings);
 $('menu-close').addEventListener('click', closeMenu);
 el.menuBack.addEventListener('click', showMenuTab);
 el.tabs.addEventListener('click', (e) => {
@@ -928,7 +1077,8 @@ el.tabs.addEventListener('click', (e) => {
 // ---------- запуск ----------
 
 window.addEventListener('resize', () => { measure(); render(); });
-measure();
+applyFont(font);
+showHint();
 el.wpm.textContent = wpm;
 showPaused();
 // новая веб-часть запустилась - иначе через 10 с модуль обновлений вернёт прежнюю
@@ -1093,7 +1243,7 @@ function openFlag() {
   const at = { b: pos.b, c: pos.c, v: t.v, word: t.t };
   el.menuTitle.textContent = 'Отметить стих';
   el.menuBack.hidden = true;
-  $('menu-help').hidden = true;
+  menuIcons(false);
   el.tabs.hidden = true;
 
   const box = node('div', 'form');
