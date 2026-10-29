@@ -6,9 +6,9 @@ const FILES = {
  "./": "34856b0dbcd1353e",
  "index.html": "34856b0dbcd1353e",
  "style.css": "295834717d21c887",
- "app.js": "c290c70c19802286",
+ "app.js": "d2badd624d943cd6",
  "bible.js": "b58fc01acb7aa58d",
- "version.js": "c7e0d7dacdc1fd91",
+ "version.js": "e2c5b5eb9884445e",
  "manifest.webmanifest": "831dd37eea4fcc75",
  "icons/icon-180.png": "c5cbd87c5e2aaef9",
  "icons/icon-192.png": "097fc4ca1207929c",
@@ -18,7 +18,7 @@ const FILES = {
  "fonts/literata-cyrillic.woff2": "39bb5c343c21e6a4",
  "fonts/literata-latin.woff2": "a60c193b55766b68"
 };
-const CACHE = 'bible-89065802b5';
+const CACHE = 'bible-898e846547';
 const META = '__hashes';
 
 self.addEventListener('install', (e) => {

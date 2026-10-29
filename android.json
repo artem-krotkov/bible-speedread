@@ -5,15 +5,15 @@
  "notes": "Дальше обновления будут приходить сами, без скачивания файла",
  "native_hash": "8a0cf34b3ec2c4f5f53be063af3188c604f6c47ec0f83d16dbade7b9ac99a3d5",
  "web": {
-  "code": 15,
-  "name": "0.1.15",
+  "code": 16,
+  "name": "0.1.16",
   "min_native": 10,
-  "notes": "Настройки (Меню → ⚙): способ управления - держать палец, касание «старт и стоп» или «держать - пауза»; шрифт на выбор - Обычный, Roboto Condensed, Literata. Размер слова больше не скачет на длинных словах.",
+  "notes": "Режим «держать - пауза» убран: остались «держать палец» и «касание: старт и стоп». Если был выбран убранный режим, включится «старт и стоп».",
   "manifest": [
    {
     "file_name": "app.js",
-    "file_hash": "c290c70c19802286826c2d0d92af58b8a7143daff02ab1cb2c17e8891f96d63d",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/app.js?h=c290c70c1980"
+    "file_hash": "d2badd624d943cd6e6d3c032ed9b0c767ab78f22b8d1a56b1176ecf17d1158d3",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/app.js?h=d2badd624d94"
    },
    {
     "file_name": "bible.js",
@@ -82,13 +82,13 @@
    },
    {
     "file_name": "sw.js",
-    "file_hash": "7376311dbf10c5596aed5253bbca1976d98a17b19f4c3e363431fff72b73dd1f",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/sw.js?h=7376311dbf10"
+    "file_hash": "0695b294f9157fe593ac8763ca3cf5df7021974521376146ff2516de57f8bd30",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/sw.js?h=0695b294f915"
    },
    {
     "file_name": "version.js",
-    "file_hash": "c7e0d7dacdc1fd919d0122e493cde747d7c0c53108afea2420b5826e4374d00f",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/version.js?h=c7e0d7dacdc1"
+    "file_hash": "e2c5b5eb9884445ed0a8da0ef16ca3064baeea3ea458461e642cc778454ffeb4",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/version.js?h=e2c5b5eb9884"
    }
   ]
  }

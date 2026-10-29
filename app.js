@@ -473,7 +473,6 @@ function step() {
 }
 
 function pause() {
-  hold = null;
   if (!playing) return;
   playing = false;
   clearTimeout(timer);
@@ -485,17 +484,16 @@ function pause() {
 }
 
 // управление (Настройки → Управление), тексты согласованы 28.10.2026:
-// hold - держишь палец - идёт, отпустил - пауза; tap - касание: старт и стоп;
-// still - касание - старт, держишь палец - пауза (отпустил - дальше), короткое касание - остановка
+// hold - держишь палец - идёт, отпустил - пауза; tap - касание: старт и стоп
+// (режим «держать - пауза» в 0.1.15 убран 29.10.2026 - кто его выбрал, переходит на «старт и стоп»)
 const MODES = [
   ['hold', 'Держать палец', 'Держите палец на экране - слова идут. Отпустили - пауза.',
     ['Держите палец на экране - слова побегут.', 'Отпустите - пауза.', 'Касание у левого или правого края - стих назад или вперёд.']],
   ['tap', 'Касание: старт и стоп', 'Коснулись - слова идут. Коснулись ещё раз - пауза.',
     ['Коснитесь экрана - слова побегут.', 'Коснитесь ещё раз - пауза.', 'Касание у левого или правого края - стих назад или вперёд.']],
-  ['still', 'Держать - пауза', 'Коснулись - слова идут. Держите палец - пауза, отпустили - дальше. Короткое касание - остановка.',
-    ['Коснитесь экрана - слова побегут.', 'Держите палец - пауза, отпустите - дальше.', 'Короткое касание - остановка.']],
 ];
-let mode = MODES.find((m) => m[0] === load('mode', 'hold')) || MODES[0];
+const savedMode = load('mode', 'hold');
+let mode = MODES.find((m) => m[0] === (savedMode === 'still' ? 'tap' : savedMode)) || MODES[0];
 
 function showHint() {
   const hint = $('hint');
@@ -512,26 +510,6 @@ const pointers = new Set();
 const TAP_MS = 220;
 const TAP_MOVE = 20;
 let edge = null;
-let starter = null; // «держать - пауза»: касание на паузе, чтение начнётся, когда палец отпустят
-let hold = null; // «держать - пауза»: палец на экране во время чтения {id, t}
-
-// «держать - пауза»: слова стоят, пока палец на экране; время удержания в чтение не входит
-function holdStart(id) {
-  clearTimeout(timer);
-  hold = { id, t: Date.now() };
-}
-
-function holdEnd(stop) {
-  const h = hold;
-  hold = null;
-  if (!playing) return;
-  if (stop) {
-    pause();
-    return;
-  }
-  if (session) session.t += Date.now() - h.t;
-  timer = setTimeout(step, delayFor(cur()));
-}
 
 function edgeSide(x) {
   const w = el.reader.clientWidth;
@@ -552,18 +530,11 @@ el.reader.addEventListener('pointerdown', (e) => {
   pointers.add(e.pointerId);
   try { el.reader.setPointerCapture(e.pointerId); } catch (err) { /* ок */ }
   const side = edgeSide(e.clientX);
-  if (mode[0] !== 'hold') {
+  if (mode[0] === 'tap') {
     if (pointers.size > 1) return;
-    if (playing) {
-      if (mode[0] === 'tap') pause();
-      else holdStart(e.pointerId);
-    } else if (side) {
-      edge = { id: e.pointerId, side, x: e.clientX, y: e.clientY };
-    } else if (mode[0] === 'tap') {
-      play();
-    } else {
-      starter = e.pointerId;
-    }
+    if (playing) pause();
+    else if (side) edge = { id: e.pointerId, side, x: e.clientX, y: e.clientY };
+    else play();
     return;
   }
   if (side && !playing && pointers.size === 1) {
@@ -594,15 +565,6 @@ function release(e) {
       else nextVerse();
       flash(side);
     }
-  }
-  if (mode[0] === 'still') {
-    if (starter === e.pointerId) {
-      starter = null;
-      if (e.type === 'pointerup') play();
-    }
-    // короткое касание - остановка, удержание - пауза до отпускания
-    if (hold && hold.id === e.pointerId) holdEnd(e.type !== 'pointerup' || Date.now() - hold.t < TAP_MS);
-    return;
   }
   if (mode[0] === 'hold' && !pointers.size) pause();
 }
