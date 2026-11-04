@@ -11,7 +11,7 @@ const $ = (id) => document.getElementById(id);
 const body = document.body;
 const el = {
   reader: $('reader'), ref: $('ref'), bar: $('bar'), word: $('word'),
-  wl: $('wl'), wp: $('wp'), wr: $('wr'), context: $('context'),
+  wl: $('wl'), wp: $('wp'), wr: $('wr'), context: $('context'), verse: $('verse'), vt: $('vt'),
   wpm: $('wpm'), menu: $('menu'), menuTitle: $('menu-title'),
   menuBack: $('menu-back'), menuList: $('menu-list'), tabs: $('tabs'),
 };
@@ -129,6 +129,119 @@ wpm = roundSpeed(wpm ?? 275);
 
 const cur = () => tokensOf(pos.b, pos.c)[pos.i];
 
+// ---------- показ: по словам или стихом ----------
+// Настройки → Показ. По словам - RSVP, слова по одному. Стихом - стих (или его часть, если стих длинный) целиком:
+// сам сменяется через время, равное сумме показов его слов, либо только касанием у края (verse-manual).
+// Тексты - на согласовании (04.11.2026).
+const VIEWS = [
+  ['words', 'По словам', 'Слова идут по одному в одной точке.'],
+  ['verse', 'Стихом', 'Стих показан целиком и сам сменяется. Длинный стих делится на части.'],
+  ['verse-manual', 'Стихом, листать касанием', 'Стих показан целиком и не сменяется сам - только касанием у левого или правого края.'],
+];
+let view = VIEWS.find((x) => x[0] === load('view', 'words')) || VIEWS[0];
+const viewVerse = () => view[0] !== 'words';
+const viewManual = () => view[0] === 'verse-manual';
+
+// экраны главы: заголовок, затем стих целиком или его части {i0, i1 - показы, v, first, last, h}.
+// Деление зависит от размера экрана и шрифта (меряется в #verse), поэтому кэш сбрасывается в measure()
+const screenCache = new Map();
+const CLAUSE_END = /[,;:.!?…—]["»”')]*$/;
+
+function verseFits(list, v, a, z) {
+  el.vt.innerHTML = '<sup>' + (v + 1) + '</sup>' + escapeHtml(list.slice(a, z + 1).map((x) => x.t).join(' '));
+  return el.vt.offsetHeight <= el.verse.clientHeight - 6;
+}
+
+// части стиха: сначала целиком, иначе на n частей примерно равной длины (n = 2, 3, ...), границы - у знаков препинания
+function splitVerse(list, i, j) {
+  const v = list[i].v;
+  if (i === j || verseFits(list, v, i, j)) return [[i, j]];
+  const cum = [];
+  let sum = 0;
+  for (let q = i; q <= j; q++) {
+    sum += list[q].t.length + 1;
+    cum.push(sum);
+  }
+  // начинаем с оценки по высоте целого стиха (у самых длинных в Есфири 4:17 - 576 слов - десятки частей)
+  const first = Math.max(2, Math.floor(el.vt.offsetHeight / Math.max(1, el.verse.clientHeight)));
+  let parts = [];
+  for (let n = first; n <= 120; n++) {
+    parts = [];
+    let from = i;
+    for (let k = 1; k < n; k++) {
+      const ideal = (sum * k) / n;
+      let best = -1;
+      let bestScore = Infinity;
+      for (let q = from; q <= j - (n - k); q++) {
+        const score = Math.abs(cum[q - i] - ideal) * (CLAUSE_END.test(list[q].t) ? 1 : 2.5);
+        if (score < bestScore) {
+          bestScore = score;
+          best = q;
+        }
+      }
+      if (best < from) break;
+      parts.push([from, best]);
+      from = best + 1;
+    }
+    parts.push([from, j]);
+    if (parts.length === n && parts.every(([a, z]) => verseFits(list, v, a, z))) return parts;
+  }
+  return parts;
+}
+
+function screensOf(b, c) {
+  const key = b + ':' + c;
+  if (screenCache.has(key)) return screenCache.get(key);
+  const list = tokensOf(b, c);
+  const out = [{ i0: 0, i1: 0, h: true, v: -1 }];
+  let i = 1;
+  while (i < list.length) {
+    let j = i;
+    while (j + 1 < list.length && list[j + 1].v === list[i].v) j++;
+    for (const [a, z] of splitVerse(list, i, j)) out.push({ i0: a, i1: z, h: false, v: list[i].v, first: a === i, last: z === j });
+    i = j + 1;
+  }
+  if (screenCache.size > 6) screenCache.delete(screenCache.keys().next().value);
+  screenCache.set(key, out);
+  return out;
+}
+
+function screenIndex() {
+  const k = screensOf(pos.b, pos.c).findIndex((s) => pos.i >= s.i0 && pos.i <= s.i1);
+  return k < 0 ? 0 : k;
+}
+const curScreen = () => screensOf(pos.b, pos.c)[screenIndex()];
+const wordsOnScreen = (s) => tokensOf(pos.b, pos.c).slice(s.i0, s.i1 + 1).reduce((n, t) => n + t.k, 0);
+
+// сколько держать экран: сумма показов его слов, не меньше 1,5 с (глазу нужно пройти строки)
+function screenDelay(s) {
+  const list = tokensOf(pos.b, pos.c);
+  let d = 0;
+  for (let k = s.i0; k <= s.i1; k++) d += delayFor(list[k]);
+  return s.h ? d : Math.max(1500, d);
+}
+
+// ставит pos на соседний экран (в том числе в соседней главе); false - дальше некуда
+function moveScreen(dir) {
+  const list = screensOf(pos.b, pos.c);
+  const k = screenIndex();
+  if (list[k + dir]) {
+    pos.i = list[k + dir].i0;
+    return true;
+  }
+  if (dir > 0) {
+    const n = nextChapter(pos);
+    if (!n) return false;
+    pos = { ...n, i: 0 };
+  } else {
+    const p = prevChapter(pos);
+    if (!p) return false;
+    const prev = screensOf(p.b, p.c);
+    pos = { ...p, i: prev[prev.length - 1].i0 };
+  }
+  return true;
+}
+
 function nextChapter(p) {
   if (p.c + 1 < BOOKS[p.b].c.length) return { b: p.b, c: p.c + 1 };
   if (p.b + 1 < BOOKS.length) return { b: p.b + 1, c: 0 };
@@ -142,6 +255,7 @@ function prevChapter(p) {
 }
 
 function advance() {
+  if (viewVerse()) return moveScreen(1);
   if (pos.i + 1 < tokensOf(pos.b, pos.c).length) {
     pos.i++;
     return true;
@@ -157,6 +271,11 @@ function verseStart(b, c, v) {
 }
 
 function prevVerse() {
+  if (viewVerse()) {
+    moveScreen(-1);
+    showPaused();
+    return;
+  }
   const t = cur();
   if (t.w > 0) {
     pos.i = verseStart(pos.b, pos.c, t.v);
@@ -172,7 +291,15 @@ function prevVerse() {
   showPaused();
 }
 
+// в ручном режиме («листать касанием») это единственный способ читать - поэтому ход вперёд считается чтением
 function nextVerse() {
+  if (viewVerse()) {
+    if (viewManual() && !session) startSession();
+    if (!moveScreen(1)) return;
+    if (viewManual()) countScreen();
+    showPaused();
+    return;
+  }
   const t = cur();
   const i = verseStart(pos.b, pos.c, t.v + 1);
   if (i > 0) {
@@ -232,6 +359,7 @@ const SAMPLE = 'и сказал Бог: да будет свет. и стал с
 let baseFs = 44;
 
 function measure() {
+  screenCache.clear();
   const w = el.word.clientWidth || window.innerWidth - 32;
   const charW = textWidth(SAMPLE, 100) / 100 / SAMPLE.length;
   baseFs = Math.min(60, (w / 2) * 0.96 / (FIT_CHARS * charW));
@@ -247,14 +375,35 @@ function applyFont(f) {
   if (document.fonts) document.fonts.load('40px ' + f[2], SAMPLE).then(() => { if (font === f) { measure(); render(); } }, () => {});
 }
 
+function renderVerse() {
+  const s = curScreen();
+  el.verse.classList.toggle('heading', s.h);
+  if (s.h) {
+    const w = el.verse.clientWidth || window.innerWidth - 32;
+    const title = cur().t;
+    el.vt.textContent = title;
+    el.vt.style.fontSize = Math.min(30, 30 * w * 0.96 / textWidth(title, 30)).toFixed(1) + 'px';
+    return;
+  }
+  el.vt.style.fontSize = '';
+  verseFits(tokensOf(pos.b, pos.c), s.v, s.i0, s.i1);
+}
+
 function render() {
   const t = cur();
-  if (t.h) {
+  document.body.classList.toggle('verse-view', viewVerse());
+  document.body.classList.toggle('manual', viewManual());
+  if (viewVerse()) {
+    renderVerse();
+  } else if (t.h) {
     el.word.classList.add('heading');
     el.wl.textContent = '';
     el.wp.textContent = t.t;
     el.wr.textContent = '';
-    el.word.style.setProperty('--fs', baseFs + 'px');
+    // заголовок крупнее 30 px не бывает (style.css), а длинный («2-е Фессалоникийцам, глава 10») на узком экране уменьшаем, чтобы влез
+    const w = el.word.clientWidth || window.innerWidth - 32;
+    const big = Math.min(baseFs, 30);
+    el.word.style.setProperty('--fs', Math.min(big, big * w * 0.96 / textWidth(t.t, big)).toFixed(1) + 'px');
   } else {
     el.word.classList.remove('heading');
     const p = pivotOf(t);
@@ -287,7 +436,7 @@ function renderContext() {
   }
   const words = tokensOf(pos.b, pos.c).filter((x) => x.v === t.v);
   el.context.innerHTML = '<sup>' + (t.v + 1) + '</sup>' + words
-    .map((x) => (x.w === t.w ? '<mark>' + escapeHtml(x.t) + '</mark>' : escapeHtml(x.t)))
+    .map((x) => (x.w === t.w && !viewVerse() ? '<mark>' + escapeHtml(x.t) + '</mark>' : escapeHtml(x.t)))
     .join(' ');
 }
 
@@ -418,11 +567,11 @@ function startSession() {
 }
 
 // продолжение рядом с прошлым местом в течение 30 минут дописывается в ту же запись
-function endSession() {
+function endSession(at) {
   const s = session;
   session = null;
   if (!s || !s.words) return;
-  const now = Date.now();
+  const now = at || Date.now();
   const end = freeze(pos);
   track('read', { words: s.words, seconds: Math.round((now - s.t) / 1000), book: BOOKS[pos.b].n, wpm });
   const day = days[dateKey(now)] || { ms: 0, words: 0 };
@@ -455,6 +604,10 @@ function play() {
   keepAwake();
   render();
   // текущее слово показываем чуть дольше, чтобы глаз успел поймать ритм
+  if (viewVerse()) {
+    timer = setTimeout(step, screenDelay(curScreen()));
+    return;
+  }
   const t = cur();
   timer = setTimeout(step, delayFor(t) * (t.h ? 1 : 1.5));
 }
@@ -465,11 +618,26 @@ function step() {
     pause();
     return;
   }
+  if (viewVerse()) {
+    countScreen();
+    render();
+    timer = setTimeout(step, screenDelay(curScreen()));
+    return;
+  }
   const t = cur();
   if (session) session.words += t.k;
   if (t.e) markVerse(pos.b, pos.c, t.v);
   render();
   timer = setTimeout(step, delayFor(cur()));
+}
+
+// экран показан: считаем его слова, а стих - прочитанным, когда показана его последняя часть
+function countScreen() {
+  const s = curScreen();
+  if (s.h) return;
+  if (session) session.words += wordsOnScreen(s);
+  touchManual();
+  if (s.last) markVerse(pos.b, pos.c, s.v);
 }
 
 function pause() {
@@ -481,6 +649,23 @@ function pause() {
   allowSleepLater();
   showPaused();
   reloadIfIdle();
+}
+
+// ручной режим: сессия кончается после минуты без касаний (время - по последнему касанию), при меню, сворачивании
+let manualIdle = 0;
+
+function touchManual() {
+  if (!viewManual() || !session) return;
+  session.last = Date.now();
+  clearTimeout(manualIdle);
+  manualIdle = setTimeout(endManual, 60000);
+}
+
+function endManual() {
+  clearTimeout(manualIdle);
+  if (playing || !session) return;
+  endSession(session.last || Date.now());
+  store('pos', freeze(pos));
 }
 
 // управление (Настройки → Управление), тексты согласованы 28.10.2026:
@@ -498,7 +683,10 @@ let mode = MODES.find((m) => m[0] === (savedMode === 'still' ? 'tap' : savedMode
 function showHint() {
   const hint = $('hint');
   hint.replaceChildren();
-  mode[3].forEach((line, k) => {
+  const lines = viewManual()
+    ? ['Касание у правого края - стих дальше.', 'Касание у левого края - стих назад.']
+    : viewVerse() ? mode[3].map((l) => l.replace('слова побегут', 'стихи пойдут')) : mode[3];
+  lines.forEach((line, k) => {
     if (k) hint.append(document.createElement('br'));
     hint.append(line);
   });
@@ -530,6 +718,11 @@ el.reader.addEventListener('pointerdown', (e) => {
   pointers.add(e.pointerId);
   try { el.reader.setPointerCapture(e.pointerId); } catch (err) { /* ок */ }
   const side = edgeSide(e.clientX);
+  if (viewManual()) {
+    // стих листается только касанием у края; середина экрана ничего не делает
+    if (side && pointers.size === 1) edge = { id: e.pointerId, side, x: e.clientX, y: e.clientY };
+    return;
+  }
   if (mode[0] === 'tap') {
     if (pointers.size > 1) return;
     if (playing) pause();
@@ -550,7 +743,7 @@ el.reader.addEventListener('pointermove', (e) => {
   if (Math.hypot(e.clientX - edge.x, e.clientY - edge.y) > TAP_MOVE) {
     clearTimeout(edge.timer);
     edge = null;
-    if (mode[0] === 'hold') play();
+    if (mode[0] === 'hold' && !viewManual()) play();
   }
 });
 
@@ -583,7 +776,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.code === 'Space') {
     e.preventDefault();
-    if (e.repeat) return;
+    if (e.repeat || viewManual()) return;
     if (mode[0] === 'hold' || !playing) play();
     else pause();
   } else if (!playing && e.key === 'ArrowLeft') prevVerse();
@@ -600,6 +793,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     pointers.clear();
     pause();
+    endManual();
     store('pos', freeze(pos));
   }
 });
@@ -624,6 +818,7 @@ let tab = pos.b < OT ? 'ot' : 'nt';
 
 function openMenu() {
   pause();
+  endManual();
   tab = pos.b < OT ? 'ot' : 'nt';
   showMenuTab();
   el.menu.hidden = false;
@@ -950,13 +1145,22 @@ const HELP = [
   ]],
 ];
 
+// «Как читать» при показе стихом: красной буквы и подчёркнутого слова нет
+function helpVerse() {
+  return [
+    viewManual() ? VIEWS[2][2] : mode[2].replace('слова идут', 'стихи идут'),
+    'Длинный стих делится на части по запятым и точкам с запятой.',
+    'Способ показа, управление и шрифт - Меню → ⚙ Настройки.',
+  ];
+}
+
 function showHelp() {
   el.menuTitle.textContent = 'Справка';
   subScreen('Назад');
   const box = node('div', 'help');
   for (const [title, lines] of HELP) {
     const ul = node('ul');
-    for (const line of lines) ul.append(node('li', '', line ?? mode[2]));
+    for (const line of title === 'Как читать' && viewVerse() ? helpVerse() : lines) ul.append(node('li', '', line ?? mode[2]));
     box.append(node('h3', '', title), ul);
   }
   const tools = node('div', 'tools');
@@ -982,6 +1186,24 @@ function showSettings() {
   el.menuTitle.textContent = 'Настройки';
   subScreen('Назад');
   const box = node('div', 'help');
+  const views = node('div', 'choices');
+  for (const x of VIEWS) {
+    const btn = node('button', x === view ? 'on' : '', x[1]);
+    btn.type = 'button';
+    btn.append(node('small', '', x[2]));
+    btn.addEventListener('click', () => {
+      pause();
+      endManual();
+      view = x;
+      store('view', x[0]);
+      screenCache.clear();
+      showHint();
+      render();
+      renderContext();
+      views.querySelectorAll('button').forEach((y) => y.classList.toggle('on', y === btn));
+    });
+    views.append(btn);
+  }
   const modes = node('div', 'choices');
   for (const m of MODES) {
     const btn = node('button', m === mode ? 'on' : '', m[1]);
@@ -1012,13 +1234,14 @@ function showSettings() {
     });
     fonts.append(btn);
   }
-  box.append(node('h3', '', 'Управление'), modes, node('h3', '', 'Шрифт'), fonts);
+  box.append(node('h3', '', 'Показ'), views, node('h3', '', 'Управление'), modes, node('h3', '', 'Шрифт'), fonts);
   el.menuList.replaceChildren(box);
   el.menuList.scrollTop = 0;
 }
 
 function openHelp() {
   pause();
+  endManual();
   tab = pos.b < OT ? 'ot' : 'nt';
   showHelp();
   el.menu.hidden = false;
@@ -1271,7 +1494,8 @@ function openFlag() {
   const t = cur();
   if (t.h) return;
   pause();
-  const at = { b: pos.b, c: pos.c, v: t.v, word: t.t };
+  endManual();
+  const at = { b: pos.b, c: pos.c, v: t.v, word: viewVerse() ? '' : t.t };
   el.menuTitle.textContent = 'Отметить стих';
   el.menuBack.hidden = true;
   menuIcons(false);

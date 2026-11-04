@@ -159,6 +159,48 @@ button {
 
 #word.heading #wp { color: inherit; }
 
+/* показ стихом (Настройки → Показ): стих целиком вместо слова; деление длинных стихов меряется по #vt */
+#verse {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  align-items: center;
+}
+
+body.verse-view #verse { display: flex; }
+body.verse-view #stage > :not(#verse) { display: none; }
+body.verse-view #context { display: none; }
+
+#vt {
+  width: 100%;
+  color: var(--fg);
+  font-size: 22px;
+  line-height: 1.5;
+  font-family: var(--read-font, inherit);
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+#vt sup {
+  margin-right: .3em;
+  color: var(--dim);
+  font-size: .6em;
+}
+
+#verse.heading #vt {
+  color: var(--dim);
+  text-align: center;
+  white-space: pre;
+  font-size: 30px;
+}
+
+#verse.heading #vt sup { display: none; }
+
+/* ручной показ: скорости нет - слова сами не идут */
+body.manual #speed { display: none; }
+
 #context {
   min-height: 7.5em;
   max-height: 30vh;
