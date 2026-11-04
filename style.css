@@ -198,6 +198,31 @@ body.verse-view #context { display: none; }
 
 #verse.heading #vt sup { display: none; }
 
+/* внизу при показе стихом - строка со словом (как в показе по словам): касание возвращает к словам */
+#wordstrip {
+  display: none;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: 64px;
+  margin-top: 8px;
+  padding: 0 8px;
+  border: 1px solid var(--faint);
+  border-radius: 12px;
+  background: none;
+  color: var(--fg);
+  font-size: var(--fs, 28px);
+  line-height: 1.2;
+  white-space: pre;
+  font-family: var(--read-font, inherit);
+  transition: opacity .25s;
+}
+
+#wordstrip #sl { text-align: right; }
+#wordstrip #sp { color: var(--accent); }
+#wordstrip #sr { text-align: left; }
+body.verse-view #wordstrip { display: grid; }
+body.verse-view #hint { bottom: calc(190px + env(safe-area-inset-bottom)); }
+
 /* ручной показ: скорости нет - слова сами не идут */
 body.manual #speed { display: none; }
 
@@ -342,6 +367,7 @@ body.playing #update { display: none; }
 
 body.playing #top,
 body.playing #context,
+body.playing #wordstrip,
 body.playing #controls { opacity: 0; }
 
 body.playing #hint,

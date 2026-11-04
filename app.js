@@ -11,7 +11,7 @@ const $ = (id) => document.getElementById(id);
 const body = document.body;
 const el = {
   reader: $('reader'), ref: $('ref'), bar: $('bar'), word: $('word'),
-  wl: $('wl'), wp: $('wp'), wr: $('wr'), context: $('context'), verse: $('verse'), vt: $('vt'),
+  wl: $('wl'), wp: $('wp'), wr: $('wr'), context: $('context'), verse: $('verse'), vt: $('vt'), strip: $('wordstrip'), sl: $('sl'), sp: $('sp'), sr: $('sr'),
   wpm: $('wpm'), menu: $('menu'), menuTitle: $('menu-title'),
   menuBack: $('menu-back'), menuList: $('menu-list'), tabs: $('tabs'),
 };
@@ -140,12 +140,38 @@ const VIEWS = [
 ];
 let view = VIEWS.find((x) => x[0] === load('view', 'words')) || VIEWS[0];
 const viewVerse = () => view[0] !== 'words';
+// какой из двух показов стихом включать при переключении «слова ↔ стих» (запоминается)
+let lastVerseView = VIEWS.find((x) => x[0] === load('viewVerse', null) && x[0] !== 'words') || (viewVerse() ? view : VIEWS[1]);
 const viewManual = () => view[0] === 'verse-manual';
 
 // экраны главы: заголовок, затем стих целиком или его части {i0, i1 - показы, v, first, last, h}.
 // Деление зависит от размера экрана и шрифта (меряется в #verse), поэтому кэш сбрасывается в measure()
 const screenCache = new Map();
 const CLAUSE_END = /[,;:.!?…—]["»”')]*$/;
+
+// слова ↔ стих на лету: свайп вверх/вниз, касание стиха внизу (по словам), строка со словом внизу (стихом).
+// Из стиха в слова - с первого слова экрана (pos.i в режиме стиха всегда начало экрана)
+function setView(x) {
+  pause();
+  endManual();
+  view = x;
+  store('view', x[0]);
+  if (x[0] !== 'words') {
+    lastVerseView = x;
+    store('viewVerse', x[0]);
+  }
+  screenCache.clear();
+  render();
+  if (viewVerse()) {
+    pos.i = curScreen().i0;
+    render();
+  }
+  showHint();
+  renderContext();
+  store('pos', freeze(pos));
+}
+
+const toggleView = () => setView(viewVerse() ? VIEWS[0] : lastVerseView);
 
 function verseFits(list, v, a, z) {
   el.vt.innerHTML = '<sup>' + (v + 1) + '</sup>' + escapeHtml(list.slice(a, z + 1).map((x) => x.t).join(' '));
@@ -291,12 +317,14 @@ function prevVerse() {
   showPaused();
 }
 
-// в ручном режиме («листать касанием») это единственный способ читать - поэтому ход вперёд считается чтением
+// при показе стихом ход вперёд касанием считается чтением (в ручном режиме это единственный способ читать,
+// в автоматическом - чтение «держал, отпустил, листаю краем»); при показе по словам это только переход
 function nextVerse() {
   if (viewVerse()) {
-    if (viewManual() && !session) startSession();
+    const reading = !playing;
+    if (reading && !session) startSession();
     if (!moveScreen(1)) return;
-    if (viewManual()) countScreen();
+    if (reading) countScreen();
     showPaused();
     return;
   }
@@ -383,10 +411,32 @@ function renderVerse() {
     const title = cur().t;
     el.vt.textContent = title;
     el.vt.style.fontSize = Math.min(30, 30 * w * 0.96 / textWidth(title, 30)).toFixed(1) + 'px';
-    return;
+  } else {
+    el.vt.style.fontSize = '';
+    verseFits(tokensOf(pos.b, pos.c), s.v, s.i0, s.i1);
   }
-  el.vt.style.fontSize = '';
-  verseFits(tokensOf(pos.b, pos.c), s.v, s.i0, s.i1);
+  renderStrip();
+}
+
+// размер слова, чтобы оно влезло по обе стороны от красной буквы в ширину w
+function fitFs(t, w, base) {
+  const p = pivotOf(t);
+  const room = (w - textWidth(t.t[p] || '', base)) / 2 * 0.98;
+  const need = Math.max(textWidth(t.t.slice(0, p), base), textWidth(t.t.slice(p + 1), base));
+  return need > room ? base * room / need : base;
+}
+
+// строка внизу при показе стихом: первое слово экрана с красной буквой, касание - обратно по словам
+function renderStrip() {
+  const list = tokensOf(pos.b, pos.c);
+  const s = curScreen();
+  const t = list[s.h ? Math.min(1, list.length - 1) : s.i0];
+  const p = pivotOf(t);
+  el.sl.textContent = t.t.slice(0, p);
+  el.sp.textContent = t.t[p] || '';
+  el.sr.textContent = t.t.slice(p + 1);
+  const w = (el.strip.clientWidth || window.innerWidth - 32) - 16;
+  el.strip.style.setProperty('--fs', fitFs(t, w, Math.min(baseFs, 30)).toFixed(1) + 'px');
 }
 
 function render() {
@@ -412,10 +462,7 @@ function render() {
     el.wr.textContent = t.t.slice(p + 1);
     // размер постоянный; слово, которое не влезает по обе стороны от красной буквы, уменьшаем
     const w = el.word.clientWidth || window.innerWidth - 32;
-    const room = (w - textWidth(t.t[p] || '', baseFs)) / 2 * 0.98;
-    const need = Math.max(textWidth(t.t.slice(0, p), baseFs), textWidth(t.t.slice(p + 1), baseFs));
-    const fs = need > room ? baseFs * room / need : baseFs;
-    el.word.style.setProperty('--fs', fs.toFixed(1) + 'px');
+    el.word.style.setProperty('--fs', fitFs(t, w, baseFs).toFixed(1) + 'px');
   }
   const book = BOOKS[pos.b];
   el.ref.textContent = book.n + ' ' + (pos.c + 1) + (t.v >= 0 ? ':' + (t.v + 1) : '');
@@ -598,6 +645,7 @@ function endSession(at) {
 
 function play() {
   if (playing) return;
+  endManual();
   playing = true;
   body.classList.add('playing', 'started');
   startSession();
@@ -651,11 +699,12 @@ function pause() {
   reloadIfIdle();
 }
 
-// ручной режим: сессия кончается после минуты без касаний (время - по последнему касанию), при меню, сворачивании
+// листание касанием при показе стихом: сессия кончается после минуты без касаний (время - по последнему касанию),
+// при меню, сворачивании, смене показа; запуск автосмены (play) тоже её закрывает
 let manualIdle = 0;
 
 function touchManual() {
-  if (!viewManual() || !session) return;
+  if (!viewVerse() || playing || !session) return;
   session.last = Date.now();
   clearTimeout(manualIdle);
   manualIdle = setTimeout(endManual, 60000);
@@ -698,6 +747,9 @@ const pointers = new Set();
 const TAP_MS = 220;
 const TAP_MOVE = 20;
 let edge = null;
+// свайп вверх - показ стихом, вниз - по словам (в любом режиме управления; в «держать палец» чтение успевает стартовать - свайп его останавливает)
+const SWIPE_MIN = 70;
+let swipe = null;
 
 function edgeSide(x) {
   const w = el.reader.clientWidth;
@@ -718,6 +770,13 @@ el.reader.addEventListener('pointerdown', (e) => {
   pointers.add(e.pointerId);
   try { el.reader.setPointerCapture(e.pointerId); } catch (err) { /* ок */ }
   const side = edgeSide(e.clientX);
+  swipe = pointers.size === 1 ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+  // стих внизу на паузе: короткое касание - показ стихом, удержание - чтение (как у краёв)
+  if (!viewVerse() && !playing && pointers.size === 1 && e.target.closest('#context')) {
+    edge = { id: e.pointerId, side: 0, ctx: true, x: e.clientX, y: e.clientY };
+    if (mode[0] === 'hold') edge.timer = setTimeout(() => { edge = null; play(); }, TAP_MS);
+    return;
+  }
   if (viewManual()) {
     // стих листается только касанием у края; середина экрана ничего не делает
     if (side && pointers.size === 1) edge = { id: e.pointerId, side, x: e.clientX, y: e.clientY };
@@ -739,6 +798,17 @@ el.reader.addEventListener('pointerdown', (e) => {
 });
 
 el.reader.addEventListener('pointermove', (e) => {
+  if (swipe && swipe.id === e.pointerId) {
+    const dx = e.clientX - swipe.x;
+    const dy = e.clientY - swipe.y;
+    if (Math.abs(dy) > SWIPE_MIN && Math.abs(dy) > 1.8 * Math.abs(dx)) {
+      swipe = null;
+      if (edge) clearTimeout(edge.timer);
+      edge = null;
+      if (dy < 0 !== viewVerse()) toggleView(); // вверх - в стих (если ещё не в нём), вниз - в слова
+      return;
+    }
+  }
   if (!edge || edge.id !== e.pointerId) return;
   if (Math.hypot(e.clientX - edge.x, e.clientY - edge.y) > TAP_MOVE) {
     clearTimeout(edge.timer);
@@ -749,11 +819,16 @@ el.reader.addEventListener('pointermove', (e) => {
 
 function release(e) {
   if (!pointers.delete(e.pointerId)) return;
+  if (swipe && swipe.id === e.pointerId) swipe = null;
   if (edge && edge.id === e.pointerId) {
     clearTimeout(edge.timer);
-    const side = edge.side;
+    const { side, ctx } = edge;
     edge = null;
     if (!playing && e.type === 'pointerup') {
+      if (ctx) {
+        toggleView();
+        return;
+      }
       if (side < 0) prevVerse();
       else nextVerse();
       flash(side);
@@ -809,6 +884,7 @@ function changeWpm(dir) {
 
 $('slower').addEventListener('click', () => changeWpm(-1));
 $('faster').addEventListener('click', () => changeWpm(1));
+el.strip.addEventListener('click', () => { if (!playing) toggleView(); });
 $('prev').addEventListener('click', prevVerse);
 $('next').addEventListener('click', nextVerse);
 
@@ -1125,6 +1201,7 @@ const HELP = [
   ['Переходы', [
     'Короткое касание у левого края - стих назад, у правого - вперёд.',
     'Кнопки «‹ стих» и «стих ›» внизу делают то же самое.',
+    'Свайп вверх - показ стихом, свайп вниз - по словам. То же: касание стиха внизу на паузе и касание слова внизу при показе стихом.',
     'Касание названия книги вверху - выбор книги и главы.',
     '⚑ на паузе - отметить стих: слишком быстро, ошибка в тексте или другое.',
   ]],
@@ -1192,14 +1269,7 @@ function showSettings() {
     btn.type = 'button';
     btn.append(node('small', '', x[2]));
     btn.addEventListener('click', () => {
-      pause();
-      endManual();
-      view = x;
-      store('view', x[0]);
-      screenCache.clear();
-      showHint();
-      render();
-      renderContext();
+      setView(x);
       views.querySelectorAll('button').forEach((y) => y.classList.toggle('on', y === btn));
     });
     views.append(btn);
