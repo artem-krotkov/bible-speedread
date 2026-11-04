@@ -600,6 +600,44 @@ body.has-update #hint { display: none; }
 
 .form button:disabled { opacity: .4; }
 
+.attach { margin-bottom: 10px; }
+.attach input[type=file] { display: none; }
+
+.attach > button,
+.attach-preview button {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1px solid var(--faint);
+  background: none;
+  color: var(--dim);
+  font: inherit;
+}
+
+.attach-hint {
+  margin: 6px 2px 0;
+  color: var(--dim);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.attach-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.attach-preview[hidden] { display: none; }
+
+.attach-preview img {
+  max-width: 96px;
+  max-height: 96px;
+  border-radius: 8px;
+  border: 1px solid var(--faint);
+}
+
+.attach-preview button { flex: 1; }
+
 .flag-ref {
   margin: 4px 2px 6px;
   color: var(--fg);

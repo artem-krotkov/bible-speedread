@@ -5,15 +5,15 @@
  "notes": "Дальше обновления будут приходить сами, без скачивания файла",
  "native_hash": "8a0cf34b3ec2c4f5f53be063af3188c604f6c47ec0f83d16dbade7b9ac99a3d5",
  "web": {
-  "code": 16,
-  "name": "0.1.16",
+  "code": 17,
+  "name": "0.1.17",
   "min_native": 10,
-  "notes": "Режим «держать - пауза» убран: остались «держать палец» и «касание: старт и стоп». Если был выбран убранный режим, включится «старт и стоп».",
+  "notes": "В отзыве можно приложить скриншот.",
   "manifest": [
    {
     "file_name": "app.js",
-    "file_hash": "d2badd624d943cd6e6d3c032ed9b0c767ab78f22b8d1a56b1176ecf17d1158d3",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/app.js?h=d2badd624d94"
+    "file_hash": "8a6a2f638ddaf5877d4a61db5a03f0fdfadbf503ee62ad78b8c55679f38bc60c",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/app.js?h=8a6a2f638dda"
    },
    {
     "file_name": "bible.js",
@@ -77,18 +77,18 @@
    },
    {
     "file_name": "style.css",
-    "file_hash": "295834717d21c8879ae58b2acdd722624a3f0f319ca0ca0cb0c9f80666fc5736",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/style.css?h=295834717d21"
+    "file_hash": "57276817d7fdd8edb8f2f163329b515887981e8e8ee8aac43d5ff7bc48b4f256",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/style.css?h=57276817d7fd"
    },
    {
     "file_name": "sw.js",
-    "file_hash": "0695b294f9157fe593ac8763ca3cf5df7021974521376146ff2516de57f8bd30",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/sw.js?h=0695b294f915"
+    "file_hash": "7a8ec9a0eb999c580d2322b26fa7827b2b410430ad3bdbca9b9720d8a7898de3",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/sw.js?h=7a8ec9a0eb99"
    },
    {
     "file_name": "version.js",
-    "file_hash": "e2c5b5eb9884445ed0a8da0ef16ca3064baeea3ea458461e642cc778454ffeb4",
-    "download_url": "https://artem-krotkov.github.io/bible-speedread/version.js?h=e2c5b5eb9884"
+    "file_hash": "a07ec19a6dd1ee39658a3e5a2ba9dc6878c15c9abc5f079ab92306e91d19409d",
+    "download_url": "https://artem-krotkov.github.io/bible-speedread/version.js?h=a07ec19a6dd1"
    }
   ]
  }

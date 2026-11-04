@@ -1176,6 +1176,38 @@ function textField(tag, placeholder, max) {
   return f;
 }
 
+// скриншот к отзыву: только jpg/png/webp, перерисовывается в JPEG (метаданные и EXIF пропадают), до 1600 px
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const IMAGE_MAX_BYTES = 1500000;
+
+async function prepareImage(file) {
+  if (!IMAGE_TYPES.includes(file.type) || file.size > 30000000) return null;
+  let bmp;
+  try {
+    bmp = await createImageBitmap(file);
+  } catch (e) {
+    return null;
+  }
+  let scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bmp.width * scale));
+    canvas.height = Math.max(1, Math.round(bmp.height * scale));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    const url = canvas.toDataURL('image/jpeg', attempt < 2 ? 0.8 : 0.6);
+    if (url.length * 0.75 <= IMAGE_MAX_BYTES) {
+      bmp.close();
+      return { url, data: url.slice(url.indexOf(',') + 1) };
+    }
+    scale *= 0.7;
+  }
+  bmp.close();
+  return null;
+}
+
 function showFeedback() {
   el.menuTitle.textContent = 'Отзыв';
   subScreen('Назад');
@@ -1184,16 +1216,53 @@ function showFeedback() {
   const contact = textField('input', 'Как с вами связаться (необязательно)', 200);
   const send = node('button', 'primary', 'Отправить');
   send.type = 'button';
+
+  let image = null;
+  const file = node('input');
+  file.type = 'file';
+  file.accept = IMAGE_TYPES.join(',');
+  file.hidden = true;
+  const attach = node('div', 'attach');
+  const pick = node('button', '', 'Прикрепить скриншот');
+  pick.type = 'button';
+  const hint = node('p', 'attach-hint', 'Увидит только автор. Проверьте, что на скриншоте нет личных данных.');
+  const preview = node('div', 'attach-preview');
+  preview.hidden = true;
+  const thumb = node('img');
+  thumb.alt = '';
+  const remove = node('button', '', 'Убрать');
+  remove.type = 'button';
+  preview.append(thumb, remove);
+  attach.append(pick, hint, preview, file);
+  const showImage = (img) => {
+    image = img;
+    pick.hidden = hint.hidden = !!img;
+    preview.hidden = !img;
+    if (img) thumb.src = img.url;
+  };
+  pick.addEventListener('click', () => file.click());
+  remove.addEventListener('click', () => { file.value = ''; showImage(null); });
+  file.addEventListener('change', async () => {
+    const f = file.files[0];
+    if (!f) return;
+    pick.disabled = true;
+    const img = await prepareImage(f);
+    pick.disabled = false;
+    file.value = '';
+    if (img) showImage(img);
+    else hint.textContent = 'Не получилось прикрепить. Подойдут картинки jpg, png или webp.';
+  });
+
   send.addEventListener('click', async () => {
     if (!text.value.trim()) {
       text.focus();
       return;
     }
     send.disabled = true;
-    const res = await submit({ kind: 'feedback', text: text.value, contact: contact.value });
+    const res = await submit({ kind: 'feedback', text: text.value, contact: contact.value, ...(image ? { image: image.data } : {}) });
     box.replaceChildren(node('p', 'sent', SENT_TEXT[res]));
   });
-  box.append(text, contact, send);
+  box.append(text, contact, attach, send);
   el.menuList.replaceChildren(box);
   el.menuList.scrollTop = 0;
 }
