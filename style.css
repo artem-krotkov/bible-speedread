@@ -86,6 +86,38 @@ button {
 
 #flag[hidden] { display: none; }
 
+/* поделиться стихом (на паузе), слева от флажка */
+#share {
+  position: absolute;
+  top: 8px;
+  right: 36px;
+  width: 44px;
+  height: 44px;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#share[hidden] { display: none; }
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(120px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #222;
+  color: var(--fg);
+  font-size: 15px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+
+#toast.on { opacity: 1; }
+
 #ref {
   display: block;
   margin: 0 auto;
@@ -94,6 +126,8 @@ button {
   font-size: 15px;
   letter-spacing: .02em;
 }
+
+#ref.shift { margin-left: 0; }
 
 #progress {
   height: 2px;

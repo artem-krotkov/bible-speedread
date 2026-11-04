@@ -18,6 +18,7 @@
 <main id="reader">
   <header id="top">
     <button id="ref" class="ui" type="button"></button>
+    <button id="share" class="ui" type="button" aria-label="Поделиться стихом"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.8l7.4-4.4M8.3 13.2l7.4 4.4"/></svg></button>
     <button id="flag" class="ui" type="button" aria-label="Отметить стих">&#x2691;&#xFE0E;</button>
     <div id="progress"><div id="bar"></div></div>
   </header>
@@ -33,6 +34,7 @@
   <button id="wordstrip" class="ui" type="button" aria-label="Показ по словам"><span id="sl"></span><span id="sp"></span><span id="sr"></span></button>
   <p id="hint">Держите палец на экране - слова побегут.<br>Отпустите - пауза.<br>Касание у левого или правого края - стих назад или вперёд.</p>
   <div id="flash"></div>
+  <div id="toast" role="status"></div>
   <p id="install" hidden>Чтобы установить: «Поделиться» → «На экран Домой». Так приложение работает без интернета и не теряет прогресс.</p>
   <div id="update" class="ui" hidden>
     <p id="update-text"></p>

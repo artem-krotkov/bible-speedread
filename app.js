@@ -465,8 +465,15 @@ function render() {
     el.word.style.setProperty('--fs', fitFs(t, w, baseFs).toFixed(1) + 'px');
   }
   const book = BOOKS[pos.b];
-  el.ref.textContent = book.n + ' ' + (pos.c + 1) + (t.v >= 0 ? ':' + (t.v + 1) : '');
+  const refText = book.n + ' ' + (pos.c + 1) + (t.v >= 0 ? ':' + (t.v + 1) : '');
   $('flag').hidden = !!t.h;
+  $('share').hidden = !!t.h;
+  if (el.ref.textContent !== refText) {
+    el.ref.textContent = refText;
+    // длинное название на узком экране упирается в иконку «поделиться» - сдвигаем его влево
+    el.ref.classList.remove('shift');
+    if (!t.h && el.ref.getBoundingClientRect().right > $('share').getBoundingClientRect().left + 12) el.ref.classList.add('shift');
+  }
   el.bar.style.width = (100 * pos.i / Math.max(1, tokensOf(pos.b, pos.c).length - 1)) + '%';
 }
 
@@ -1610,6 +1617,57 @@ function openFlag() {
   el.menu.hidden = false;
 }
 
+// ---------- поделиться стихом ----------
+// Стих целиком (даже если на экране его часть) и ссылка на место; без ссылки на приложение (решение 04.11.2026).
+// Android - плагин Share, иначе системное меню браузера, иначе копирование в буфер.
+
+let toastTimer = 0;
+
+function toast(text) {
+  const t = $('toast');
+  t.textContent = text;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 1800);
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0';
+    document.body.append(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (err) { /* ок */ }
+    ta.remove();
+    return ok;
+  }
+}
+
+async function shareVerse() {
+  const t = cur();
+  if (t.h) return;
+  const text = BOOKS[pos.b].c[pos.c][t.v] + '\n' + BOOKS[pos.b].n + ' ' + (pos.c + 1) + ':' + (t.v + 1);
+  try {
+    if (plugins.Share) {
+      await plugins.Share.share({ text, dialogTitle: 'Поделиться стихом' });
+      return;
+    }
+    if (navigator.share) {
+      await navigator.share({ text });
+      return;
+    }
+  } catch (e) {
+    if (e && (e.name === 'AbortError' || /cancel/i.test(e.message || ''))) return; // человек закрыл меню
+  }
+  toast(await copyText(text) ? 'Скопировано' : 'Не получилось скопировать');
+}
+
+$('share').addEventListener('click', shareVerse);
 $('flag').addEventListener('click', openFlag);
 window.addEventListener('online', () => { if (outbox.length) deliver(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && outbox.length) deliver(); });
