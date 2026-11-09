@@ -1061,6 +1061,90 @@ function stat(label, value) {
   return box;
 }
 
+// ---------- график «слов по дням» ----------
+// Самодостаточная функция: можно копировать в другое приложение вместе с блоком .dchart из style.css.
+// days - {'ГГГГ-ММ-ДД': {ms, words}}; opts - {dateKey(ms) -> 'ГГГГ-ММ-ДД', words(n) -> '1 240 слов', duration(ms) -> '25 мин', count = 60}.
+// Возвращает DOM-элемент: 60 столбцов (слева старый день, справа сегодня), единый масштаб по максимуму,
+// касание / клик / протяжка по графику выбирает день и показывает его в строке под графиком.
+function dayChart(days, opts) {
+  const count = opts.count || 60;
+  const num = (n) => n.toLocaleString('ru-RU');
+  const make = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  const box = make('div', 'dchart');
+
+  // последние count календарных дней, включая сегодня (середина дня - чтобы не спотыкаться о смену времени)
+  const base = new Date();
+  const list = [];
+  for (let k = count - 1; k >= 0; k--) {
+    const key = opts.dateKey(new Date(base.getFullYear(), base.getMonth(), base.getDate() - k, 12).getTime());
+    const d = days[key];
+    list.push({ key, words: d && d.words > 0 ? d.words : 0, ms: d && d.ms > 0 ? d.ms : 0 });
+  }
+  const total = list.reduce((sum, d) => sum + d.words, 0);
+  if (!total) {
+    box.append(make('p', 'dchart-empty', 'График появится после первого чтения'));
+    return box;
+  }
+  const max = Math.max(...list.map((d) => d.words));
+  const active = list.filter((d) => d.words > 0).length;
+
+  const head = make('div', 'dchart-head');
+  head.append(make('span', 'dchart-title', 'Слов по дням, ' + count + ' дней'), make('span', 'dchart-max', 'макс. ' + num(max)));
+
+  const bars = make('div', 'dchart-bars');
+  const info = make('p', 'dchart-info');
+  info.setAttribute('aria-live', 'polite');
+  const cols = list.map((d) => {
+    const col = make('div', 'dchart-col');
+    const bar = make('i', d.words ? 'dchart-bar' : 'dchart-bar zero');
+    if (d.words) bar.style.height = (d.words / max * 100).toFixed(2) + '%';
+    col.append(bar);
+    bars.append(col);
+    return col;
+  });
+
+  const dateText = (key) => {
+    const [y, m, dd] = key.split('-').map(Number);
+    const o = { day: 'numeric', month: 'long' };
+    if (y !== base.getFullYear()) o.year = 'numeric';
+    return new Date(y, m - 1, dd).toLocaleDateString('ru-RU', o);
+  };
+  let current = -1;
+  const select = (i) => {
+    i = Math.max(0, Math.min(count - 1, i));
+    if (i === current) return;
+    if (current >= 0) cols[current].classList.remove('on');
+    current = i;
+    cols[i].classList.add('on');
+    const d = list[i];
+    info.textContent = d.words
+      ? dateText(d.key) + ' · ' + opts.words(d.words) + ' · ' + opts.duration(d.ms)
+      : dateText(d.key) + ' · не читали';
+  };
+  // протяжка пальцем по горизонтали выбирает дни, вертикаль остаётся прокруткой списка (touch-action: pan-y)
+  const pick = (e) => {
+    const r = bars.getBoundingClientRect();
+    select(Math.floor((e.clientX - r.left) / r.width * count));
+  };
+  let down = false;
+  bars.addEventListener('pointerdown', (e) => { down = true; pick(e); });
+  bars.addEventListener('pointermove', (e) => { if (down || e.pointerType === 'mouse') pick(e); });
+  const up = () => { down = false; };
+  bars.addEventListener('pointerup', up);
+  bars.addEventListener('pointercancel', up);
+  bars.addEventListener('pointerleave', up);
+  select(count - 1);
+
+  const sum = 'За ' + count + ' дней: ' + opts.words(total) + ', в среднем ' + num(Math.round(total / active)) + ' в день';
+  box.append(head, bars, info, make('p', 'dchart-hint', 'Коснитесь столбика, чтобы увидеть день'), make('p', 'dchart-sum', sum));
+  return box;
+}
+
 function showHistory() {
   el.menuTitle.textContent = 'История';
   const now = Date.now();
@@ -1113,7 +1197,9 @@ function showHistory() {
     'Файл пригодится при переустановке приложения или смене телефона.'),
   node('p', 'summary', versionLine()));
 
-  el.menuList.replaceChildren(stats, list, tools);
+  const chart = dayChart(days, { dateKey, words, duration });
+
+  el.menuList.replaceChildren(stats, chart, list, tools);
   el.menuList.scrollTop = 0;
 }
 
