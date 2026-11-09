@@ -852,6 +852,7 @@ document.addEventListener('contextmenu', (e) => { if (!e.target.closest('textare
 
 // на компьютере: держать пробел
 document.addEventListener('keydown', (e) => {
+  if (!$('whatsnew').hidden) return; // окно «что нового» закрывается только кнопкой
   if (!el.menu.hidden) {
     if (e.key === 'Escape') closeMenu();
     return;
@@ -1847,16 +1848,92 @@ function showUpdate(u) {
 checkUpdate();
 if (plugins.App) plugins.App.addListener('resume', checkUpdate);
 
+// ---------- окно «Приложение обновилось» ----------
+// Один раз после обновления (тихого в Android и веб): что нового с прошлого показанного номера.
+// publish.py пишет в version.js window.APP_CHANGES = [{v, n, notes}, ...] (последние 5, новые сверху).
+// rsvp.seenVersion - APP_WEB последней показанной версии; нет ключа (первая установка или первый запуск
+// с этой функцией) - запоминаем номер молча. Не показываем во время чтения, при открытом меню/справке/
+// предложении обновить APK и поверх первого запуска - ждём, проверяя раз в секунду.
+
+const WHATSNEW_MAX = 5;
+let whatsNewTimer = 0;
+
+function whatsNewBusy() {
+  return playing || pointers.size > 0 || document.hidden || !el.menu.hidden || !$('update').hidden;
+}
+
+function closeWhatsNew() {
+  const box = $('whatsnew');
+  if (box.hidden) return;
+  box.hidden = true;
+  el.reader.inert = false;
+  el.menu.inert = false;
+  store('seenVersion', window.APP_WEB);
+}
+
+function showWhatsNew(list) {
+  const first = list[0];
+  const ver = String(window.APP_VERSION || '').split(' от ')[0] || first.v;
+  $('whatsnew-title').textContent = 'Приложение обновилось до версии ' + ver;
+  const items = $('whatsnew-list');
+  items.replaceChildren();
+  if (list.length === 1) {
+    items.append(node('p', 'wn-one', first.notes));
+  } else {
+    for (const c of list) {
+      const li = node('li');
+      li.append(node('b', '', c.v), ' - ' + c.notes);
+      items.append(li);
+    }
+  }
+  $('whatsnew-ok').onclick = closeWhatsNew;
+  el.reader.inert = true;
+  el.menu.inert = true;
+  $('whatsnew').hidden = false;
+  items.scrollTop = 0;
+  $('whatsnew-ok').focus();
+  track('whatsnew_shown', { to: window.APP_WEB });
+}
+
+function checkWhatsNew() {
+  const cur = Number(window.APP_WEB) || 0;
+  if (!cur || !Array.isArray(window.APP_CHANGES)) return;
+  const seen = load('seenVersion', null);
+  if (typeof seen !== 'number') {
+    store('seenVersion', cur);
+    return;
+  }
+  if (seen >= cur) return;
+  const list = window.APP_CHANGES
+    .filter((c) => c && c.notes && Number(c.n) > seen)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, WHATSNEW_MAX);
+  if (!list.length) {
+    store('seenVersion', cur);
+    return;
+  }
+  const tick = () => {
+    if (whatsNewBusy()) return;
+    clearInterval(whatsNewTimer);
+    showWhatsNew(list);
+  };
+  whatsNewTimer = setInterval(tick, 1000);
+}
+
+checkWhatsNew();
+
 // при первом запуске справка открывается сама
 if (!load('helpSeen', false)) {
   store('helpSeen', true);
   openHelp();
 }
 
-// кнопка «назад» Android: сначала закрыть меню, иначе свернуть приложение
+// кнопка «назад» Android: сначала закрыть окно «что нового» и меню, иначе свернуть приложение
 if (plugins.App) {
   plugins.App.addListener('backButton', () => {
-    if (!el.menu.hidden) {
+    if (!$('whatsnew').hidden) {
+      closeWhatsNew();
+    } else if (!el.menu.hidden) {
       if (!el.menuBack.hidden) showMenuTab();
       else closeMenu();
     } else {
