@@ -129,6 +129,18 @@ wpm = roundSpeed(wpm ?? 275);
 
 const cur = () => tokensOf(pos.b, pos.c)[pos.i];
 
+// избранное: [{b, c, v, t}] - книга, глава, стих (с нуля), время добавления; новые сверху
+const FAVS_MAX = 1000;
+const favKey = (f) => f.b + ':' + f.c + ':' + f.v;
+function normalizeFav(f) {
+  if (!f || !BOOKS[f.b] || !BOOKS[f.b].c[f.c] || typeof BOOKS[f.b].c[f.c][f.v] !== 'string') return null;
+  return { b: f.b, c: f.c, v: f.v, t: Number(f.t) || 0 };
+}
+let favs = load('favs', []);
+if (!Array.isArray(favs)) favs = [];
+favs = favs.map(normalizeFav).filter(Boolean);
+const isFav = (b, c, v) => favs.some((f) => f.b === b && f.c === c && f.v === v);
+
 // ---------- показ: по словам или стихом ----------
 // Настройки → Показ. По словам - RSVP, слова по одному. Стихом - стих (или его часть, если стих длинный) целиком:
 // сам сменяется через время, равное сумме показов его слов, либо только касанием у края (verse-manual).
@@ -468,11 +480,24 @@ function render() {
   const refText = book.n + ' ' + (pos.c + 1) + (t.v >= 0 ? ':' + (t.v + 1) : '');
   $('flag').hidden = !!t.h;
   $('share').hidden = !!t.h;
+  $('fav').hidden = !!t.h;
+  if (!t.h) {
+    const on = isFav(pos.b, pos.c, t.v);
+    $('fav').classList.toggle('on', on);
+    $('fav').setAttribute('aria-label', on ? 'Убрать из избранного' : 'В избранное');
+  }
   if (el.ref.textContent !== refText) {
     el.ref.textContent = refText;
-    // длинное название на узком экране упирается в иконку «поделиться» - сдвигаем его влево
-    el.ref.classList.remove('shift');
-    if (!t.h && el.ref.getBoundingClientRect().right > $('share').getBoundingClientRect().left + 12) el.ref.classList.add('shift');
+    // длинное название на узком экране упирается в самую левую иконку (избранное) - сдвигаем его влево
+    el.ref.classList.remove('shift', 'tight');
+    const favLeft = $('fav').getBoundingClientRect().left + 12; // левый край самого значка
+    if (!t.h && el.ref.getBoundingClientRect().right > favLeft) {
+      el.ref.classList.add('shift');
+      // и после сдвига не влезает - уменьшаем шрифт
+      const range = document.createRange();
+      range.selectNodeContents(el.ref);
+      if (range.getBoundingClientRect().right > favLeft - 6) el.ref.classList.add('tight');
+    }
   }
   el.bar.style.width = (100 * pos.i / Math.max(1, tokensOf(pos.b, pos.c).length - 1)) + '%';
 }
@@ -952,6 +977,8 @@ function showMenuTab() {
   el.tabs.hidden = false;
   el.tabs.querySelectorAll('button').forEach((btn) => btn.classList.toggle('on', btn.dataset.tab === tab));
   if (tab === 'hist') showHistory();
+  else if (tab === 'stat') showStats();
+  else if (tab === 'fav') showFavorites();
   else showBooks();
 }
 
@@ -1146,8 +1173,8 @@ function dayChart(days, opts) {
   return box;
 }
 
-function showHistory() {
-  el.menuTitle.textContent = 'История';
+function showStats() {
+  el.menuTitle.textContent = 'Статистика';
   const now = Date.now();
   const today = days[dateKey(now)] || { ms: 0, words: 0 };
   let week = 0;
@@ -1168,6 +1195,24 @@ function showHistory() {
     stat('Библии прочитано', percent(rangeRead(0, BOOKS.length))),
   );
 
+  const tools = node('div', 'tools');
+  const exp = node('button', '', 'Сохранить прогресс в файл');
+  const imp = node('button', '', 'Загрузить прогресс из файла');
+  exp.type = imp.type = 'button';
+  exp.addEventListener('click', exportProgress);
+  imp.addEventListener('click', () => $('import-file').click());
+  tools.append(exp, imp, node('p', 'summary',
+    'Файл пригодится при переустановке приложения или смене телефона.'),
+  node('p', 'summary', versionLine()));
+
+  const chart = dayChart(days, { dateKey, words, duration });
+
+  el.menuList.replaceChildren(stats, chart, tools);
+  el.menuList.scrollTop = 0;
+}
+
+function showHistory() {
+  el.menuTitle.textContent = 'История';
   const list = node('div', 'history');
   if (!readHistory.length) list.append(node('p', 'summary', 'Здесь появятся места, где вы остановились.'));
   let lastDay = '';
@@ -1187,27 +1232,72 @@ function showHistory() {
     btn.addEventListener('click', () => goTo(e.end));
     list.append(btn);
   }
+  el.menuList.replaceChildren(list);
+  el.menuList.scrollTop = 0;
+}
 
-  const tools = node('div', 'tools');
-  const exp = node('button', '', 'Сохранить прогресс в файл');
-  const imp = node('button', '', 'Загрузить прогресс из файла');
-  exp.type = imp.type = 'button';
-  exp.addEventListener('click', exportProgress);
-  imp.addEventListener('click', () => $('import-file').click());
-  tools.append(exp, imp, node('p', 'summary',
-    'Файл пригодится при переустановке приложения или смене телефона.'),
-  node('p', 'summary', versionLine()));
+// ---------- избранное ----------
 
-  const chart = dayChart(days, { dateKey, words, duration });
+// начало стиха не длиннее ~60 знаков, обрезка по словам
+function verseSnippet(text, max = 60) {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max + 1);
+  const i = cut.lastIndexOf(' ');
+  return cut.slice(0, i > 0 ? i : max).replace(/[\s,;:.\-]+$/, '') + '…';
+}
 
-  el.menuList.replaceChildren(stats, chart, list, tools);
+function toggleFav() {
+  const t = cur();
+  if (t.h) return;
+  const at = { b: pos.b, c: pos.c, v: t.v };
+  if (isFav(at.b, at.c, at.v)) {
+    favs = favs.filter((f) => favKey(f) !== favKey(at));
+    toast('Убрано из избранного');
+  } else {
+    favs.unshift({ ...at, t: Date.now() });
+    if (favs.length > FAVS_MAX) favs.length = FAVS_MAX;
+    track('favorite_add', { book: BOOKS[at.b].n });
+    toast('Добавлено в избранное');
+  }
+  store('favs', favs);
+  render();
+}
+
+function showFavorites() {
+  el.menuTitle.textContent = 'Избранное';
+  const list = node('div', 'history favs');
+  if (!favs.length) list.append(node('p', 'summary', 'Здесь появятся стихи, отмеченные ♡ на паузе.'));
+  for (const f of favs) {
+    const row = node('div', 'fav-row');
+    const go = node('button', 'go');
+    go.type = 'button';
+    go.append(
+      node('span', '', placeText(f)),
+      node('small', '', verseSnippet(BOOKS[f.b].c[f.c][f.v]) + ' · ' + dayLabel(dateKey(f.t))),
+    );
+    go.addEventListener('click', () => goTo({ b: f.b, c: f.c, v: f.v, o: 0 }));
+    const del = node('button', 'del', '✕');
+    del.type = 'button';
+    del.setAttribute('aria-label', 'Убрать из избранного');
+    del.addEventListener('click', () => {
+      favs = favs.filter((x) => favKey(x) !== favKey(f));
+      store('favs', favs);
+      const top = el.menuList.scrollTop;
+      showFavorites();
+      el.menuList.scrollTop = top;
+      render();
+    });
+    row.append(go, del);
+    list.append(row);
+  }
+  el.menuList.replaceChildren(list);
   el.menuList.scrollTop = 0;
 }
 
 // ---------- сохранение прогресса в файл ----------
 
 function progressData() {
-  return { app: 'bible-speedread', version: 1, exported: new Date().toISOString(), pos: freeze(pos), wpm, rhythm: RHYTHM, history: readHistory, days, read: readMap };
+  return { app: 'bible-speedread', version: 1, exported: new Date().toISOString(), pos: freeze(pos), wpm, rhythm: RHYTHM, history: readHistory, days, read: readMap, favs };
 }
 
 async function exportProgress() {
@@ -1252,11 +1342,21 @@ function mergeProgress(data) {
   for (const e of (data.history || []).map(normalizeEntry)) if (e && !seen.has(e.t0)) readHistory.push(e);
   readHistory.sort((a, b) => b.t1 - a.t1);
   if (readHistory.length > HISTORY_MAX) readHistory.length = HISTORY_MAX;
+  const haveFav = new Set(favs.map(favKey));
+  for (const f of (Array.isArray(data.favs) ? data.favs : []).map(normalizeFav)) {
+    if (f && !haveFav.has(favKey(f))) {
+      favs.push(f);
+      haveFav.add(favKey(f));
+    }
+  }
+  favs.sort((a, b) => b.t - a.t);
+  if (favs.length > FAVS_MAX) favs.length = FAVS_MAX;
   pos = resolve(data.pos) || pos;
   if (data.wpm >= WPM_MIN && data.wpm <= WPM_MAX) wpm = (data.rhythm || 1) < RHYTHM ? fromRhythm1(data.wpm) : data.wpm;
   store('read', readMap);
   store('days', days);
   store('history', readHistory);
+  store('favs', favs);
   store('pos', freeze(pos));
   store('wpm', wpm);
   el.wpm.textContent = wpm;
@@ -1273,7 +1373,7 @@ $('import-file').addEventListener('change', async (e) => {
     if (!confirm('Загрузить прогресс от ' + when + '? Он объединится с текущим, место чтения возьмётся из файла.')) return;
     mergeProgress(data);
     showPaused();
-    showHistory();
+    showMenuTab();
   } catch (err) {
     alert('Не получилось загрузить файл: ' + err.message);
   }
@@ -1305,10 +1405,12 @@ const HELP = [
     'Длинные слова, знаки препинания и конец стиха показываются дольше.',
     'Короткие слова («и», «не», «в», «ли») идут вместе с соседним словом, чтобы не проскакивать.',
   ]],
-  ['История и прогресс', [
-    'Меню → История: где вы остановились, сколько прочитали и за какое время. Касание записи - вернуться туда.',
+  ['История, статистика, избранное', [
+    'Меню → История: где вы остановились. Касание записи - вернуться туда.',
+    'Меню → Статистика: сколько прочитали и за какое время, график по дням.',
+    '♡ на паузе - добавить стих в избранное. Меню → Избранное: касание - перейти к стиху, ✕ - убрать.',
     'Стих считается прочитанным, когда вы дошли до его конца. У книг виден процент, главы закрашиваются.',
-    'Перед переустановкой или сменой телефона нажмите «Сохранить прогресс в файл», потом на новом месте - «Загрузить прогресс из файла».',
+    'Перед переустановкой или сменой телефона: Меню → Статистика → «Сохранить прогресс в файл» (избранное сохраняется тоже), потом на новом месте - «Загрузить прогресс из файла».',
   ]],
   ['О тексте', [
     'Синодальный перевод (1876), 66 канонических книг.',
@@ -1755,6 +1857,7 @@ async function shareVerse() {
 }
 
 $('share').addEventListener('click', shareVerse);
+$('fav').addEventListener('click', toggleFav);
 $('flag').addEventListener('click', openFlag);
 window.addEventListener('online', () => { if (outbox.length) deliver(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && outbox.length) deliver(); });

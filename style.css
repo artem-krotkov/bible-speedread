@@ -86,6 +86,23 @@ button {
 
 #flag[hidden] { display: none; }
 
+/* в избранное (на паузе), слева от «поделиться» */
+#fav {
+  position: absolute;
+  top: 8px;
+  right: 80px;
+  width: 44px;
+  height: 44px;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#fav[hidden] { display: none; }
+#fav.on { color: var(--accent); }
+#fav.on svg { fill: currentColor; }
+
 /* поделиться стихом (на паузе), слева от флажка */
 #share {
   position: absolute;
@@ -106,6 +123,8 @@ button {
   left: 50%;
   bottom: calc(120px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
   padding: 10px 16px;
   border-radius: 10px;
   background: #222;
@@ -128,6 +147,12 @@ button {
 }
 
 #ref.shift { margin-left: 0; }
+
+/* совсем длинное название («1-е Фессалоникийцам 5:28») на узком экране: ещё и мельче, чтобы не налезало на значки */
+#ref.tight {
+  padding-left: 0;
+  font-size: 13px;
+}
 
 #progress {
   height: 2px;
@@ -564,8 +589,10 @@ body.has-update #hint { display: none; }
 }
 #menu-close { text-align: right; font-size: 20px; }
 
+/* две строки: Новый / Ветхий Завет - по половине, История / Статистика / Избранное - по трети */
 #tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -573,12 +600,14 @@ body.has-update #hint { display: none; }
 #tabs[hidden] { display: none; }
 
 #tabs button {
-  flex: 1;
+  grid-column: span 2;
   min-height: 44px;
   border-radius: 22px;
   color: var(--dim);
   border: 1px solid var(--faint);
 }
+
+#tabs button:nth-child(-n+2) { grid-column: span 3; }
 
 #tabs button.on {
   color: var(--fg);
@@ -593,7 +622,7 @@ body.has-update #hint { display: none; }
 
 .books {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* minmax(0, ...) - иначе длинное название растягивает колонку за край экрана */
   gap: 6px;
 }
 
@@ -636,12 +665,20 @@ body.has-update #hint { display: none; }
 
 .books button {
   display: flex;
+  flex-wrap: wrap; /* на узком экране процент уходит под название, а не режет слово */
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 0 6px;
+}
+
+.books span { min-width: 0; }
+
+@media (max-width: 340px) {
+  .books button { padding: 8px 10px; font-size: 14px; }
 }
 
 .books small {
+  flex: none;
   color: var(--dim);
   font-size: 12px;
 }
@@ -803,6 +840,35 @@ body.has-update #hint { display: none; }
 .history small {
   color: var(--dim);
   font-size: 12px;
+}
+
+/* избранное: строка + кнопка убрать */
+.fav-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: #111;
+}
+
+.history .fav-row button.go {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  background: none;
+}
+
+.history .fav-row button.del {
+  flex: none;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+  margin: 0 2px 0 0;
+  padding: 0;
+  background: none;
+  color: var(--dim);
+  text-align: center;
+  font-size: 17px;
 }
 
 .tools {
